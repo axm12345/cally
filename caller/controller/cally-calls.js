@@ -34,6 +34,7 @@ function mount(app, { vonage, servicePhoneNumber, maxCallDuration }) {
       const value = req.body[key];
       if (typeof value === 'string' && value.trim()) mission[key] = value.trim().slice(0, 300);
     }
+    if (['en', 'th', 'yue'].includes(req.body.language)) mission.language = req.body.language;
 
     const id = crypto.randomUUID();
     const call = { id, status: 'ringing', transcript: [], conversation_id: null, uuid: null, answeredAt: null, endedAt: null, mission };
@@ -119,7 +120,7 @@ function onEvent(id, body) {
 function wsParams(id) {
   const call = calls.get(id);
   if (!call) return '';
-  return '&cally_id=' + encodeURIComponent(id) + MISSION_KEYS
+  return '&cally_id=' + encodeURIComponent(id) + [...MISSION_KEYS, 'language']
     .filter((key) => call.mission[key])
     .map((key) => '&' + key + '=' + encodeURIComponent(call.mission[key]))
     .join('');

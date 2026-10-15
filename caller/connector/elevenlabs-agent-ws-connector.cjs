@@ -91,6 +91,8 @@ app.ws('/socket', async (ws, req) => {
   for (const key of ['business_name', 'request_summary', 'constraints', 'questions', 'reference_time']) {
     if (typeof req.query[key] === 'string' && req.query[key].trim()) dynamicVariables[key] = req.query[key].trim().slice(0, 300);
   }
+  // Optional per-call language (the agent allows a language override; its preset supplies the greeting).
+  const callLanguage = ['en', 'th', 'yue'].includes(req.query.language) ? req.query.language : undefined;
   
   let elevenLabsTimer;
 
@@ -203,7 +205,9 @@ app.ws('/socket', async (ws, req) => {
     console.log('>>> WebSocket to ElevenLabs opened');
 
     // Initialize ElevenLabs on its own socket, using the saved agent settings.
-    elevenLabsWs.send(JSON.stringify({ type: 'conversation_initiation_client_data', dynamic_variables: dynamicVariables }));
+    const initiation = { type: 'conversation_initiation_client_data', dynamic_variables: dynamicVariables };
+    if (callLanguage) initiation.conversation_config_override = { agent: { language: callLanguage } };
+    elevenLabsWs.send(JSON.stringify(initiation));
 
     ws11LabsOpen = true;
 

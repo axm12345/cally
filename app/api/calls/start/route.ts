@@ -56,7 +56,7 @@ export async function POST(req: Request) {
           const res = await callerFetch(caller, "/calls", {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ number, ...mission(shop.shop_name) }),
+            body: JSON.stringify({ number, language: caller.language, ...mission(shop.shop_name) }),
           });
           const data = await res.json().catch(() => null);
           if (!res.ok || typeof data?.id !== "string") {

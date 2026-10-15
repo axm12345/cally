@@ -24,7 +24,9 @@ export function callerConfig() {
   const url = process.env.CALLER_URL?.trim().replace(/\/+$/, "");
   const token = process.env.CALLER_TOKEN?.trim();
   const numbers = (process.env.LIVE_SHOP_NUMBERS ?? "").split(",").map((n) => n.replace(/[^\d+]/g, ""));
-  return url && token && numbers.some(Boolean) ? { url, token, numbers } : null;
+  // CALL_LANGUAGE: en | th | yue; unset uses the agent's own default language.
+  const language = ["en", "th", "yue"].includes(process.env.CALL_LANGUAGE?.trim() ?? "") ? process.env.CALL_LANGUAGE!.trim() : undefined;
+  return url && token && numbers.some(Boolean) ? { url, token, numbers, language } : null;
 }
 
 export const callerFetch = (cfg: { url: string; token: string }, path: string, init?: RequestInit) =>
