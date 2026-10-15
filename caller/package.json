@@ -1,0 +1,16 @@
+{
+  "name": "cally-caller",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Handoff of the tested standalone Vonage and ElevenLabs calling setup",
+  "engines": {
+    "node": ">=22 <25"
+  },
+  "scripts": {
+    "setup": "npm --prefix controller ci && npm --prefix connector ci",
+    "start:controller": "npm --prefix controller run start:local-controller",
+    "start:connector": "cd connector && node elevenlabs-agent-ws-connector.cjs",
+    "start:gateway": "node local-gateway.cjs",
+    "check": "node --check controller/voice-to-ai-engines.js && node --check connector/elevenlabs-agent-ws-connector.cjs && node --check local-gateway.cjs"
+  }
+}

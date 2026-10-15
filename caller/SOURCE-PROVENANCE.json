@@ -1,0 +1,47 @@
+{
+  "basis": "Original standalone controller and connector used for successful phone conversations; excludes the unverified integrated queue.",
+  "packaging_changes": [
+    "Controller private-key path is now configurable with VONAGE_PRIVATE_KEY_PATH; original default preserved.",
+    "Hard-coded WebSocket caller-ID sample replaced by WEBSOCKET_CALLER_ID or SERVICE_PHONE_NUMBER; it is not a PSTN destination.",
+    "Numeric sample destination strings replaced with DESTINATION_DIGITS.",
+    "No call flow, endpoint, audio, dynamic-variable or queue behavior changed."
+  ],
+  "files": [
+    {
+      "packaged_path": "controller/voice-to-ai-engines.js",
+      "original_sha256": "a51f1361bbe1ce5efc88306b7b08d5a039dfb364d5f0afea02e6b3bd762815ec"
+    },
+    {
+      "packaged_path": "controller/start-local-controller.cjs",
+      "original_sha256": "e256d2bab9441e65ad7b228ff678ba1badb210ed9aa7849f8265885a14c27a48"
+    },
+    {
+      "packaged_path": "controller/package.json",
+      "original_sha256": "4871941e5062263cb3e3f13c9375b02634bfd08f7b4229fbf2ae717d9f461eb9"
+    },
+    {
+      "packaged_path": "controller/package-lock.json",
+      "original_sha256": "2d6a05680fb105c5a65d0e629eac17fe65e5e1feab041f8ef52a6d78dbfa4e5a"
+    },
+    {
+      "packaged_path": "controller/LICENSE",
+      "original_sha256": "40a1f8c93421633975cf133bb6f26b696f2e3d228a2a046006a2171f66a4aeaa"
+    },
+    {
+      "packaged_path": "connector/elevenlabs-agent-ws-connector.cjs",
+      "original_sha256": "6517f3e3033eb0408d78be1b22581a3d90ee9a423f6a7b534c586db834ceec5e"
+    },
+    {
+      "packaged_path": "connector/package.json",
+      "original_sha256": "1f4656d34899c4bbc83fc36c251a37eb54645dcb9d714d7829e27b16606ae18b"
+    },
+    {
+      "packaged_path": "connector/package-lock.json",
+      "original_sha256": "5c23acdd57b6156549872e8f96a6ab93d33a7ba778c1d22fec2a07fe1ffd147f"
+    },
+    {
+      "packaged_path": "connector/LICENSE",
+      "original_sha256": "40a1f8c93421633975cf133bb6f26b696f2e3d228a2a046006a2171f66a4aeaa"
+    }
+  ]
+}

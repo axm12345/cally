@@ -1,0 +1,58 @@
+diff --git a/controller/voice-to-ai-engines.js b/controller/voice-to-ai-engines.js
+index 7284e0d..8e9cb41 100644
+--- a/controller/voice-to-ai-engines.js
++++ b/controller/voice-to-ai-engines.js
+@@ -35,7 +35,7 @@ const credentials = new Auth({
+   apiKey: process.env.API_KEY,
+   apiSecret: process.env.API_SECRET,
+   applicationId: process.env.APP_ID,
+-  privateKey: './.private.key'    // private key file name with a leading dot 
++  privateKey: process.env.VONAGE_PRIVATE_KEY_PATH || './.private.key'    // private key file name with a leading dot 
+ });
+ 
+ const { Vonage } = require('@vonage/server-sdk');
+@@ -55,7 +55,7 @@ const fs = require('fs');
+ const axios = require('axios');
+ 
+ const appId = process.env.APP_ID; // used by tokenGenerate
+-const privateKey = fs.readFileSync('./.private.key'); // used by tokenGenerate
++const privateKey = fs.readFileSync(process.env.VONAGE_PRIVATE_KEY_PATH || './.private.key'); // used by tokenGenerate
+ const { tokenGenerate } = require('@vonage/jwt');
+ 
+ const apiBaseUrl = 'https://api.nexmo.com';
+@@ -81,7 +81,7 @@ console.log('in a web browser, enter the address:');
+ console.log('https://<this-application-server-address>/call?number=<number>');
+ console.log("<number> must in E.164 format without '+' sign, or '-', '.' characters");
+ console.log('for example');
+-console.log('https://xxxx.ngrok.xxx/call?number=REDACTED_SAMPLE_NUMBER');
++console.log('https://xxxx.ngrok.xxx/call?number=DESTINATION_DIGITS');
+ console.log('------------------------------------------------------------');
+ 
+ //============= Processing inbound PSTN calls ===============
+@@ -179,7 +179,7 @@ app.post('/event', async(req, res) => {
+       }],
+       from: {
+         type: 'phone',
+-        number: 'REDACTED_SAMPLE_NUMBER' // value does not matter
++        number: process.env.WEBSOCKET_CALLER_ID || servicePhoneNumber // value does not matter
+       },
+       answer_url: ['https://' + hostName + '/ws_answer_1?original_uuid=' + uuid],
+       answer_method: 'GET',
+@@ -225,7 +225,7 @@ app.post('/ws_event_1', async(req, res) => {
+ 
+ //-- Use case where the PSTN call is outbound
+ //-- manually trigger outbound PSTN call to "number" - see sample request below
+-//-- sample request: https://<server-address>/call?number=REDACTED_SAMPLE_NUMBER
++//-- sample request: https://<server-address>/call?number=DESTINATION_DIGITS
+ 
+ app.get('/call', async(req, res) => {
+ 
+@@ -355,7 +355,7 @@ app.post('/event_2', async(req, res) => {
+       }],
+       from: {
+         type: 'phone',
+-        number: 'REDACTED_SAMPLE_NUMBER' // value does not matter
++        number: process.env.WEBSOCKET_CALLER_ID || servicePhoneNumber // value does not matter
+       },
+       answer_url: ['https://' + hostName + '/ws_answer_2?original_uuid=' + uuid],
+       answer_method: 'GET',
