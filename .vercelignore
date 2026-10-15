@@ -1,0 +1,9 @@
+# Never upload secrets or the laptop-only caller to Vercel.
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+caller/
+callaround-handoff.md
+.claude/
