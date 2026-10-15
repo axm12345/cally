@@ -4,12 +4,26 @@ export { SHOP_DIRECTORY };
 
 const BASE = "https://api.elevenlabs.io";
 
+/**
+ * ElevenLabs places the calls itself (no laptop). ELEVENLABS_PHONE_NUMBER_ID is the Vonage
+ * number imported into ElevenLabs as a SIP trunk; ELEVENLABS_TELEPHONY=twilio for a Twilio number.
+ */
 export function elevenLabsConfig() {
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
   const agentId = process.env.ELEVENLABS_AGENT_ID?.trim();
   const phoneNumberId = process.env.ELEVENLABS_PHONE_NUMBER_ID?.trim();
-  return apiKey && agentId && phoneNumberId ? { apiKey, agentId, phoneNumberId } : null;
+  const telephony = process.env.ELEVENLABS_TELEPHONY?.trim() === "twilio" ? "twilio" : "sip";
+  return apiKey && agentId && phoneNumberId ? { apiKey, agentId, phoneNumberId, telephony } : null;
 }
+
+/** LIVE_SHOP_NUMBERS: comma-separated; the Nth number is called for the Nth shop, the rest use mock results. */
+export const liveShopNumbers = () => (process.env.LIVE_SHOP_NUMBERS ?? "").split(",").map((n) => n.replace(/[^\d+]/g, ""));
+
+/** CALL_LANGUAGE: en | th | yue; unset uses the agent's own default language. */
+export const callLanguage = () => {
+  const l = process.env.CALL_LANGUAGE?.trim() ?? "";
+  return ["en", "th", "yue"].includes(l) ? l : undefined;
+};
 
 export const elevenLabsFetch = (path: string, apiKey: string, init?: RequestInit) =>
   fetch(`${BASE}${path}`, { ...init, headers: { "xi-api-key": apiKey, ...init?.headers } });
@@ -23,10 +37,8 @@ export const elevenLabsFetch = (path: string, apiKey: string, init?: RequestInit
 export function callerConfig() {
   const url = process.env.CALLER_URL?.trim().replace(/\/+$/, "");
   const token = process.env.CALLER_TOKEN?.trim();
-  const numbers = (process.env.LIVE_SHOP_NUMBERS ?? "").split(",").map((n) => n.replace(/[^\d+]/g, ""));
-  // CALL_LANGUAGE: en | th | yue; unset uses the agent's own default language.
-  const language = ["en", "th", "yue"].includes(process.env.CALL_LANGUAGE?.trim() ?? "") ? process.env.CALL_LANGUAGE!.trim() : undefined;
-  return url && token && numbers.some(Boolean) ? { url, token, numbers, language } : null;
+  const numbers = liveShopNumbers();
+  return url && token && numbers.some(Boolean) ? { url, token, numbers, language: callLanguage() } : null;
 }
 
 export const callerFetch = (cfg: { url: string; token: string }, path: string, init?: RequestInit) =>
