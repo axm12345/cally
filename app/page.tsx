@@ -155,6 +155,7 @@ function Speak({
   }, [error]);
 
   const submit = (t: string) => {
+    setListening(false);
     setThinking(true);
     onTranscript(t);
   };
