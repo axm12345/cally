@@ -1,0 +1,16 @@
+node_modules
+.next
+.vercel
+next-env.d.ts
+*.tsbuildinfo
+
+# Secrets: never commit real env files
+.env
+.env*
+!.env.example
+*.pem
+*.key
+
+# Local tooling and private team notes
+.claude/
+callaround-handoff.md
