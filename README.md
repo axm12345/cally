@@ -1,4 +1,4 @@
-# Cally (repo: callaround)
+# Cally
 
 Say what needs fixing. An AI voice agent phones nearby shops at the same time, and the app shows the answers cheapest first, with price, distance from home and ready time.
 
