@@ -7,8 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node voice-to-ai-engines.js",
     "start:local-controller": "node start-local-controller.cjs",
-    "start:gateway": "node local-gateway.cjs",
-    "check": "node --check voice-to-ai-engines.js && node --check local-gateway.cjs"
+    "start:gateway": "node ../local-gateway.cjs",
+    "check": "node --check voice-to-ai-engines.js && node --check ../local-gateway.cjs"
   },
   "author": "Tony Chan",
   "license": "Apache-2.0",

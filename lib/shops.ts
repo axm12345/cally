@@ -184,7 +184,10 @@ export function startCalls(
   });
 
   void (async () => {
-    let started: { mode: string; calls?: { shop_name: string; conversation_id: string | null }[] };
+    let started: {
+      mode: string;
+      calls?: { shop_name: string; conversation_id: string | null; mock?: boolean; phone?: string }[];
+    };
     try {
       const res = await fetch("/api/calls/start", {
         method: "POST",
@@ -204,12 +207,46 @@ export function startCalls(
     let results = SHOP_DIRECTORY.map((s) => blank(s, "ringing"));
     const open = new Set<string>();
     const ids = new Map(started.calls.map((c) => [c.shop_name, c.conversation_id]));
+    const mockNames = new Set(started.calls.filter((c) => c.mock).map((c) => c.shop_name));
+    for (const c of started.calls) {
+      // The live shop's real number, so "Call this shop" dials who the agent talked to.
+      if (c.phone) results = results.map((x) => (x.shop_name === c.shop_name ? { ...x, phone: c.phone! } : x));
+    }
     for (const r of results) {
-      if (ids.get(r.shop_name)) open.add(r.shop_name);
-      else results = results.map((x) => (x === r ? { ...x, status: "failed" as CallStatus } : x));
+      if (ids.get(r.shop_name) || mockNames.has(r.shop_name)) open.add(r.shop_name);
+      else results = results.map((x) => (x.shop_name === r.shop_name ? { ...x, status: "failed" as CallStatus } : x));
     }
     onUpdate(results);
     if (open.size === 0) return onFinish(results);
+
+    const done = (name: string) => {
+      open.delete(name);
+      if (open.size === 0) onFinish(results);
+    };
+
+    // Shops that aren't called live play their mock result on the mock timeline.
+    for (const name of mockNames) {
+      const mock = MOCK_SHOPS.find((s) => s.shop_name === name);
+      const t = MOCK_TIMELINE[name];
+      if (!mock || !t) {
+        done(name);
+        continue;
+      }
+      const patch = (p: Partial<ShopResult>) => {
+        if (cancelled) return;
+        results = results.map((r) => (r.shop_name === name ? { ...r, ...p } : r));
+        onUpdate(results);
+      };
+      if (Number.isFinite(t.talking)) {
+        const tt = setTimeout(() => patch({ status: "talking" }), t.talking);
+        timers.add(tt);
+      }
+      const te = setTimeout(() => {
+        patch(mock);
+        if (!cancelled) done(name);
+      }, t.end);
+      timers.add(te);
+    }
 
     const poll = async (name: string) => {
       if (cancelled) return;
@@ -227,8 +264,7 @@ export function startCalls(
       } catch {}
       if (cancelled) return;
       if (terminal) {
-        open.delete(name);
-        if (open.size === 0) onFinish(results);
+        done(name);
       } else {
         const t = setTimeout(() => {
           timers.delete(t);
@@ -237,7 +273,7 @@ export function startCalls(
         timers.add(t);
       }
     };
-    for (const name of open) void poll(name);
+    for (const name of [...open]) if (!mockNames.has(name)) void poll(name);
   })();
 
   return () => {

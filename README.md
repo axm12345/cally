@@ -118,6 +118,23 @@ The result shape every screen expects (`ShopResult`):
 
 Telephony today: `/api/calls/start` uses ElevenLabs' **Twilio** outbound-call endpoint (`/v1/convai/twilio/outbound-call`). The team now uses **Vonage**, so this needs to point at the Vonage–ElevenLabs backend (see below).
 
+## Live calls (Vonage + ElevenLabs caller)
+
+`caller/` is Aarush's tested caller (from `aarush-hitgub/cally-caller`) with small additions in `caller/controller/cally-calls.js`:
+
+- `POST /calls` `{ number, business_name, request_summary, constraints, questions, reference_time }` → `{ id }` (header `x-local-call-token`)
+- `GET /calls/:id` → `{ status: ringing | talking | ended | no_answer | failed, ended, duration_secs, transcript, conversation_id }`
+- The five agent variables are passed per call to the connector, then to the ElevenLabs agent.
+- `VERIFIED_TEST_NUMBER` may list several numbers (comma-separated, digits only). Any other number is refused.
+- `PROCESSOR_SERVER` may be left blank: the WebSocket uses the same public host.
+
+The caller runs on a laptop (it needs long-lived WebSockets, which Vercel can't host):
+
+1. Put `controller/.env`, `connector/.env` and `controller/.private.key` in `caller/` (never committed). Then run `npm run setup` inside `caller/`.
+2. Double-click `caller/start-all.cmd`. It opens the controller, connector, gateway and `ngrok http 8000`.
+3. Copy ngrok's `https://…` address into `CALLER_URL` in `.env.local` and restart `npm run dev`.
+4. Confirm a request in the app. Shops with a number in `LIVE_SHOP_NUMBERS` are called for real, and the rest play mock results. If the caller is unreachable, those shops also fall back to mock.
+
 ## Integration points for the Vonage–ElevenLabs backend
 
 The UI does not need to change. Every integration happens behind the functions and endpoints above.

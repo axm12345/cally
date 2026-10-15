@@ -14,6 +14,26 @@ export function elevenLabsConfig() {
 export const elevenLabsFetch = (path: string, apiKey: string, init?: RequestInit) =>
   fetch(`${BASE}${path}`, { ...init, headers: { "xi-api-key": apiKey, ...init?.headers } });
 
+/**
+ * The Vonage + ElevenLabs caller in caller/ (runs on a laptop behind a public tunnel).
+ * CALLER_URL: its public https address. CALLER_TOKEN: its LOCAL_CALL_TOKEN.
+ * LIVE_SHOP_NUMBERS: comma-separated numbers; the Nth number is called for the Nth shop,
+ * shops without a number use mock results.
+ */
+export function callerConfig() {
+  const url = process.env.CALLER_URL?.trim().replace(/\/+$/, "");
+  const token = process.env.CALLER_TOKEN?.trim();
+  const numbers = (process.env.LIVE_SHOP_NUMBERS ?? "").split(",").map((n) => n.replace(/[^\d+]/g, ""));
+  return url && token && numbers.some(Boolean) ? { url, token, numbers } : null;
+}
+
+export const callerFetch = (cfg: { url: string; token: string }, path: string, init?: RequestInit) =>
+  fetch(`${cfg.url}${path}`, {
+    ...init,
+    headers: { "x-local-call-token": cfg.token, "ngrok-skip-browser-warning": "1", ...init?.headers },
+    cache: "no-store",
+  });
+
 /** Bangkok is UTC+7 with no DST, so a fixed offset is enough. */
 export function bangkokNow() {
   const d = new Date(Date.now() + 7 * 3600_000);

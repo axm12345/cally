@@ -10,10 +10,11 @@ const bodyParser = require('body-parser')
 const app = express();
 
 app.use(bodyParser.json());
-// Restrict the demo dial route to one verified destination and a local secret.
+const cally = require('./cally-calls'); // Cally app additions
+// Restrict the demo dial route to the verified destination(s) and a local secret.
 app.use('/call', (req, res, next) => {
   if (!process.env.LOCAL_CALL_TOKEN || req.get('x-local-call-token') !== process.env.LOCAL_CALL_TOKEN) return res.sendStatus(403);
-  if (req.query.number !== process.env.VERIFIED_TEST_NUMBER) return res.sendStatus(403);
+  if (!cally.isAllowed(req.query.number)) return res.sendStatus(403);
   next();
 });
 
@@ -72,6 +73,9 @@ const processorServer = process.env.PROCESSOR_SERVER;
 
 //---- Custom settings ---
 const maxCallDuration = process.env.MAX_CALL_DURATION; // in seconds
+
+//-- Cally app: POST /calls and GET /calls/:id --
+cally.mount(app, { vonage, servicePhoneNumber, maxCallDuration });
 
 //-----------------------------------------------------------------------------------
 
@@ -280,7 +284,7 @@ app.get('/answer_2', async(req, res) => {
   const nccoResponse = [
     {
       "action": "talk",
-      "text": "Hello. This is a call from your preferred provider. You may now speak.",
+      "text": "Hello, one moment please.", // neutral; the agent introduces itself as an AI assistant
       "language": "en-US",
       "style": 11
     },
@@ -307,9 +311,11 @@ app.post('/event_2', async(req, res) => {
   const hostName = req.hostname;
   const uuid = req.body.uuid;
 
+  cally.onEvent(req.query.cally_id, req.body);
+
   //--
 
-    if (req.body.status == 'ringing' && recordCalls) {  
+    if (req.body.status == 'ringing' && recordCalls) {
 
     const accessToken = tokenGenerate(appId, privateKey, {});
 
@@ -345,7 +351,8 @@ app.post('/event_2', async(req, res) => {
     // WebSocket connection URI
     // Custom data: participant identified as 'user1' in this example, could be 'agent', 'customer', 'patient', 'doctor', ...
     // PSTN call direction is 'inbound'
-    const wsUri = 'wss://' + processorServer + '/socket?participant=' + 'user1' +'&call_direction=outbound&peer_uuid=' + uuid + '&webhook_url=https://' + hostName + '/results';
+    // PROCESSOR_SERVER may be left blank: the gateway serves /socket on the same public host.
+    const wsUri = 'wss://' + (processorServer || hostName) + '/socket?participant=' + 'user1' +'&call_direction=outbound&peer_uuid=' + uuid + '&webhook_url=https://' + hostName + '/results' + cally.wsParams(req.query.cally_id);
 
     vonage.voice.createOutboundCall({
       to: [{
@@ -400,6 +407,8 @@ app.post('/ws_event_2', async(req, res) => {
 //------------
 
 app.post('/results', async(req, res) => {
+
+  cally.onResult(req.body);
 
   console.log(req.body)
 

@@ -84,6 +84,13 @@ app.ws('/socket', async (ws, req) => {
   
   const webhookUrl = req.query.webhook_url;
   console.log('>>> webhookUrl:', webhookUrl);
+
+  //-- Cally: this call's mission arrives as query parameters from the controller --
+  const callyId = typeof req.query.cally_id === 'string' ? req.query.cally_id : undefined;
+  const dynamicVariables = { business_name: process.env.BUSINESS_NAME || 'Hackathon demo' };
+  for (const key of ['business_name', 'request_summary', 'constraints', 'questions', 'reference_time']) {
+    if (typeof req.query[key] === 'string' && req.query[key].trim()) dynamicVariables[key] = req.query[key].trim().slice(0, 300);
+  }
   
   let elevenLabsTimer;
 
@@ -196,7 +203,7 @@ app.ws('/socket', async (ws, req) => {
     console.log('>>> WebSocket to ElevenLabs opened');
 
     // Initialize ElevenLabs on its own socket, using the saved agent settings.
-    elevenLabsWs.send(JSON.stringify({ type: 'conversation_initiation_client_data', dynamic_variables: { business_name: process.env.BUSINESS_NAME || 'Hackathon demo' } }));
+    elevenLabsWs.send(JSON.stringify({ type: 'conversation_initiation_client_data', dynamic_variables: dynamicVariables }));
 
     ws11LabsOpen = true;
 
@@ -261,13 +268,30 @@ app.ws('/socket', async (ws, req) => {
 
     //---
 
+    case 'conversation_initiation_metadata':
+
+      // Cally: tell the controller which ElevenLabs conversation belongs to this call.
+      axios.post(webhookUrl, {
+        "type": 'conversation',
+        "conversation_id": data.conversation_initiation_metadata_event && data.conversation_initiation_metadata_event.conversation_id,
+        "call_uuid": peerUuid,
+        "cally_id": callyId
+      }).catch(() => console.log('>>> Could not report conversation id'));
+
+      console.log('\n', data);
+
+      break;
+
+    //---
+
     case 'user_transcript':
 
-      await axios.post(webhookUrl,  
+      await axios.post(webhookUrl,
         {
           "type": 'user_transcript',
           "transcript": data.user_transcription_event.user_transcript,
-          "call_uuid": peerUuid
+          "call_uuid": peerUuid,
+          "cally_id": callyId
         },
         {
         headers: {
@@ -287,7 +311,8 @@ app.ws('/socket', async (ws, req) => {
         {
           "type": 'agent_response',
           "response": data.agent_response_event.agent_response,
-          "call_uuid": peerUuid
+          "call_uuid": peerUuid,
+          "cally_id": callyId
         },
         {
         headers: {
