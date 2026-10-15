@@ -1,11 +1,33 @@
-# CallAround
+# Cally (repo: callaround)
 
 Say what needs fixing. An AI voice agent phones nearby shops at the same time, and the app shows the answers cheapest first, with price, distance from home and ready time.
 
 Mobile-first Next.js web app (App Router, React 19, TypeScript, no UI libraries). Built for u-hackathon 2026, Bangkok.
 
 - **Live app:** https://call-around.vercel.app
-- **Status:** the full flow works end to end on **mock call results**. Real calls are wired for ElevenLabs Agents but switched off in production (no ElevenLabs env vars set).
+- **Status (16 Oct 2026):** works end to end. The first shop in the list is called **for real** (the number in `LIVE_SHOP_NUMBERS`); the other four shops are mock results. Calls go Vercel → ElevenLabs → Vonage, so no laptop or extra server is needed.
+
+## Picking this up as a teammate
+
+1. Clone this repo, then `npm install`.
+2. Copy `.env.example` to `.env.local` and get the real values **privately** from Harshit (never commit them):
+   `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`, `ELEVENLABS_PHONE_NUMBER_ID`, `LIVE_SHOP_NUMBERS`, `CALL_LANGUAGE`.
+   The ElevenLabs and Vonage values also live in Aarush's private repo `aarush-hitgub/cally-caller`.
+3. `npm run dev` and open http://localhost:3000. With no keys at all, the app still runs on mock results.
+4. Deploying needs access to the Vercel project `call-around` (Harshit's account). The production settings are already stored in Vercel, so a redeploy works without anyone's laptop.
+
+Where things live:
+
+| What | Where |
+|---|---|
+| The 5 screens | `app/page.tsx`, styles in `app/globals.css` |
+| Shops, mock data, ranking | `lib/shops.ts` |
+| Starting calls / call status | `app/api/calls/start/route.ts`, `app/api/calls/[id]/route.ts` |
+| Reading the spoken request | `app/api/summarize/route.ts` |
+| Location names | `app/api/place/route.ts` |
+| Voice agent (prompt, greeting, voice) | ElevenLabs agent "Cally - Business Enquiries" on Aarush's ElevenLabs account; prompt copy in `caller/agent/system-prompt.txt` |
+| Phone line | Vonage number, imported into ElevenLabs as "Cally - Vonage (SIP)" |
+| Laptop backup caller | `caller/` (only needed if direct calls stop working) |
 
 ## Requirements
 
@@ -40,9 +62,14 @@ All variables are **server-only**. They are read in `app/api/**` and `lib/server
 | Variable | Required | Used by | Effect if empty |
 |---|---|---|---|
 | `ANTHROPIC_API_KEY` | Yes | `/api/summarize`, transcript extraction in `/api/calls/[id]` | Confirm screen can't be reached (error on the Speak screen) |
-| `ELEVENLABS_API_KEY` | No | `/api/calls/*` | App uses mock results |
-| `ELEVENLABS_AGENT_ID` | No | `/api/calls/start` | App uses mock results |
-| `ELEVENLABS_PHONE_NUMBER_ID` | No | `/api/calls/start` | App uses mock results |
+| `ELEVENLABS_API_KEY` | For live calls | `/api/calls/*` | App uses mock results |
+| `ELEVENLABS_AGENT_ID` | For live calls | `/api/calls/start` | App uses mock results |
+| `ELEVENLABS_PHONE_NUMBER_ID` | For live calls | `/api/calls/start` (the Vonage SIP number in ElevenLabs) | App uses mock results |
+| `LIVE_SHOP_NUMBERS` | For live calls | Nth number is called for the Nth shop | Every shop is mock |
+| `CALL_LANGUAGE` | No | `en`, `th` or `yue`: language the agent opens in | Agent's default (Thai) |
+| `ELEVENLABS_TELEPHONY` | No | `twilio` only for a Twilio number | SIP (the Vonage number) |
+| `CALL_MODE` | No | `caller` forces the laptop caller | Direct ElevenLabs calls |
+| `CALLER_URL`, `CALLER_TOKEN` | Backup only | The laptop caller in `caller/` | Not used |
 
 See `.env.example` for the format. Claude model: `claude-haiku-5-5`.
 
@@ -50,14 +77,14 @@ See `.env.example` for the format. Claude model: `claude-haiku-5-5`.
 
 The project is linked to the Vercel project `call-around/call-around`.
 
-1. Add every variable above in **Vercel → Project → Settings → Environment Variables** (Production). Currently only `ANTHROPIC_API_KEY` is set there.
+1. Add the variables above in **Vercel → Project → Settings → Environment Variables** (Production). All of them are already set there for the live app. To turn live calls off, remove `LIVE_SHOP_NUMBERS` and redeploy.
 2. Deploy from the project folder:
    ```bash
    vercel --prod
    ```
 3. Every env var change needs a redeploy.
 
-Vercel serverless functions can't hold long-lived WebSockets. Any audio relay between a phone provider and ElevenLabs must run somewhere else.
+Vercel serverless functions can't hold long-lived WebSockets, which is why calls are placed by ElevenLabs itself (over the Vonage SIP number) rather than relayed through Vercel.
 
 ## How the app works
 
@@ -116,11 +143,11 @@ The result shape every screen expects (`ShopResult`):
 
 `/api/calls/start` builds these agent dynamic variables for each call: `business_name`, `request_summary` (fix + device), `constraints` (when + near, or "No time preference given"), `questions` (fixed list) and `reference_time` (Asia/Bangkok).
 
-Telephony today: `/api/calls/start` uses ElevenLabs' **Twilio** outbound-call endpoint (`/v1/convai/twilio/outbound-call`). The team now uses **Vonage**, so this needs to point at the Vonage–ElevenLabs backend (see below).
+Telephony today: `/api/calls/start` uses ElevenLabs' **SIP trunk** outbound-call endpoint (`/v1/convai/sip-trunk/outbound-call`) with the Vonage number imported into ElevenLabs. Each call gets the five agent variables and the `CALL_LANGUAGE` override; the transcript and status come from ElevenLabs' conversations API, and Claude reads the price and ready time.
 
-## Live calls (Vonage + ElevenLabs caller)
+## Backup: the laptop caller (Vonage + ElevenLabs)
 
-`caller/` is Aarush's tested caller (from `aarush-hitgub/cally-caller`) with small additions in `caller/controller/cally-calls.js`:
+Only needed if direct calls stop working; set `CALL_MODE=caller` to use it. `caller/` is Aarush's tested caller (from `aarush-hitgub/cally-caller`) with small additions in `caller/controller/cally-calls.js`:
 
 - `POST /calls` `{ number, business_name, request_summary, constraints, questions, reference_time }` → `{ id }` (header `x-local-call-token`)
 - `GET /calls/:id` → `{ status: ringing | talking | ended | no_answer | failed, ended, duration_secs, transcript, conversation_id }`
@@ -135,24 +162,13 @@ The caller runs on a laptop (it needs long-lived WebSockets, which Vercel can't 
 3. Copy ngrok's `https://…` address into `CALLER_URL` in `.env.local` and restart `npm run dev`.
 4. Confirm a request in the app. Shops with a number in `LIVE_SHOP_NUMBERS` are called for real, and the rest play mock results. If the caller is unreachable, those shops also fall back to mock.
 
-## Integration points for the Vonage–ElevenLabs backend
-
-The UI does not need to change. Every integration happens behind the functions and endpoints above.
-
-| Concern | Where to connect | Notes |
-|---|---|---|
-| **Shop discovery** | `SHOP_DIRECTORY` in `lib/shops.ts` | Static list today; there is no nearby-shop search yet. The selected area is sent only as the text `near`. For the demo, replace the phone numbers with the team's test numbers. A real search would replace this list, server-side, using `near`. |
-| **Call initiation** | `POST /api/calls/start` (`app/api/calls/start/route.ts`) | Replace the ElevenLabs Twilio request with a call to the Vonage backend. Keep the response shape `{ mode: "live", calls: [{ shop_name, conversation_id }] }`, and keep `{ mode: "mock" }` when credentials are missing. |
-| **Call status** | `GET /api/calls/[id]` (`app/api/calls/[id]/route.ts`) | Expects an ElevenLabs `conversation_id`. If the backend returns its own IDs, map them to ElevenLabs conversation IDs or return the same fields (`status`, `transcript`, `duration`, `terminal`, …) from the backend. |
-| **Comparison results** | `rankResults()` in `lib/shops.ts` | Plain code, cheapest first. No change needed if statuses and prices follow `ShopResult`. |
-| **Credentials** | `elevenLabsConfig()` in `lib/server/calls.ts` | Add any Vonage/backend variables here (server-only) and to `.env.example`. |
-
 **Rule: mock mode must keep working.** If any live call setup is missing or fails to start, the app must still finish the flow on mock results.
 
 ## Known gaps
 
-- Shop discovery is a fixed list, and the phone numbers in it are placeholders.
-- If live mode is configured but every call fails to start, the Options screen shows no shops (no automatic switch back to mock).
+- Shop discovery is a fixed list. Only shops with a number in `LIVE_SHOP_NUMBERS` are really called; the rest are mock.
+- Anyone with the live link can trigger a real call while `LIVE_SHOP_NUMBERS` is set on Vercel.
+- The agent sometimes says its closing line before the shop has finished its last answer.
 - If `/api/summarize` fails, the user stays on the Speak screen with an error.
 - Booking and payment (U-bot deposit) are not built. The button is "Call this shop", which opens the phone dialer.
 
