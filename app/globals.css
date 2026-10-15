@@ -95,6 +95,10 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
 
 .topbar { display: flex; align-items: center; justify-content: space-between; min-height: 44px; }
 .pill { display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 16px; border-radius: 999px; font-size: 15px; font-weight: 600; }
+.pill.area { max-width: calc(100% - 96px); min-width: 0; }
+.pill.area span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pill.area svg { flex: none; }
+.brand { font-size: 17px; font-weight: 800; letter-spacing: 0.16em; color: var(--accent); padding-right: 4px; }
 .round { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; }
 
 h1 { margin: 0; font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; }
@@ -190,13 +194,18 @@ h1 { margin: 0; font-size: 34px; line-height: 1.1; font-weight: 700; letter-spac
 .bar .btn { height: 52px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .screen, .ring, .mic-ring.live::before, .mic-ring.busy::before { animation: none; }
+  .screen, .ring, .mic-ring.live::before, .mic-ring.busy::before, .sheet-backdrop, .sheet-backdrop .sheet { animation: none; }
 }
 
 /* area sheet, notes, see-call */
 a.btn { text-decoration: none; }
 .btn:disabled { cursor: not-allowed; }
-.sheet-backdrop { position: fixed; inset: 0; z-index: 10; background: rgba(17, 19, 24, 0.22); display: flex; align-items: flex-end; justify-content: center; padding: 16px 16px calc(env(safe-area-inset-bottom) + 16px); }
+.sheet-backdrop { position: fixed; inset: 0; z-index: 10; background: rgba(17, 19, 24, 0.22); display: flex; align-items: flex-end; justify-content: center; padding: 16px 16px calc(env(safe-area-inset-bottom) + 16px); animation: fade-in 0.2s ease-out; }
+/* beats `.screen > *` so the sheet floats over the screen instead of pushing it down */
+.screen > .sheet-backdrop { position: fixed; z-index: 10; }
+.sheet-backdrop .sheet { animation: sheet-up 0.28s cubic-bezier(0.2, 0.9, 0.3, 1); }
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes sheet-up { from { transform: translateY(40px); opacity: 0; } }
 
 /* short phones: tighten the one-screen layouts so nothing is clipped */
 @media (max-height: 700px) {

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  CURRENT_LOCATION_AREA,
   DEFAULT_HOME_AREA,
   EXAMPLE_REQUEST,
   NOT_MENTIONED,
@@ -199,9 +198,11 @@ function Speak({
     <section className="screen">
       <div className="glow" style={{ top: 230, left: 45 }} />
       <div className="topbar">
-        <button className="pill glass" onClick={() => setSheet(true)} aria-haspopup="dialog">
-          <I.Home size={18} />{homeLabel(homeArea)}
+        <button className="pill glass area" onClick={() => setSheet(true)} aria-haspopup="dialog">
+          {homeArea === DEFAULT_HOME_AREA ? <I.Home size={18} /> : <I.Pin size={18} />}
+          <span>{homeLabel(homeArea)}</span>
         </button>
+        <span className="brand">CALLY</span>
       </div>
       {sheet && (
         <AreaSheet
@@ -271,6 +272,22 @@ function Speak({
   );
 }
 
+/** A short place name for a position or typed text, via /api/place. Null if it can't be named. */
+async function placeName(body: { lat: number; lon: number } | { text: string }): Promise<string | null> {
+  try {
+    const res = await fetch("/api/place", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return null;
+    const { label } = await res.json();
+    return typeof label === "string" && label.trim() ? label.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 function AreaSheet({
   current,
   onPick,
@@ -282,6 +299,7 @@ function AreaSheet({
 }) {
   const [text, setText] = useState("");
   const [locating, setLocating] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<string | null>(null);
 
   const useLocation = () => {
@@ -289,13 +307,23 @@ function AreaSheet({
     setLocating(true);
     setNote(null);
     navigator.geolocation.getCurrentPosition(
-      () => onPick(CURRENT_LOCATION_AREA),
+      async (pos) => {
+        const label = await placeName({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+        if (label) return onPick(label);
+        setLocating(false);
+        setNote("Found you, but couldn't name the street. Type an area instead.");
+      },
       () => {
         setLocating(false);
         setNote("Couldn't get your location. Type an area instead.");
       },
-      { timeout: 10_000 },
+      { timeout: 10_000, enableHighAccuracy: true },
     );
+  };
+
+  const setTyped = async (typed: string) => {
+    setSaving(true);
+    onPick((await placeName({ text: typed })) ?? typed);
   };
 
   return (
@@ -313,7 +341,7 @@ function AreaSheet({
           className="type-box"
           onSubmit={(e) => {
             e.preventDefault();
-            if (text.trim()) onPick(text.trim().slice(0, 80));
+            if (text.trim() && !saving) void setTyped(text.trim().slice(0, 80));
           }}
         >
           <input
@@ -321,8 +349,9 @@ function AreaSheet({
             onChange={(e) => setText(e.target.value)}
             placeholder="Type an area"
             aria-label="Type a different area"
+            disabled={saving}
           />
-          <button className="btn btn-primary sm" type="submit">Set</button>
+          <button className="btn btn-primary sm" type="submit" disabled={saving}>{saving ? "…" : "Set"}</button>
         </form>
       </div>
     </div>
