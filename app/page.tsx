@@ -144,10 +144,24 @@ function Speak({
   const [listening, setListening] = useState(false);
   const [typing, setTyping] = useState(false);
   const [text, setText] = useState("");
+  // UI-only states: reading the request after speech, or nothing was heard.
+  const [thinking, setThinking] = useState(false);
+  const [missed, setMissed] = useState(false);
   const recRef = useRef<SpeechRec | null>(null);
   const gotRef = useRef(false);
 
+  useEffect(() => {
+    if (error) setThinking(false);
+  }, [error]);
+
+  const submit = (t: string) => {
+    setThinking(true);
+    onTranscript(t);
+  };
+
   const toggleMic = () => {
+    if (thinking) return;
+    setMissed(false);
     if (listening) {
       recRef.current?.stop();
       return;
@@ -156,7 +170,7 @@ function Speak({
       .SpeechRecognition ?? (window as unknown as { webkitSpeechRecognition?: new () => SpeechRec }).webkitSpeechRecognition;
     if (!Ctor) {
       // No speech-to-text in this browser: use the example so the flow stays demoable.
-      onTranscript(EXAMPLE_REQUEST);
+      submit(EXAMPLE_REQUEST);
       return;
     }
     const rec = new Ctor();
@@ -165,12 +179,15 @@ function Speak({
     gotRef.current = false;
     rec.onresult = (e) => {
       gotRef.current = true;
-      onTranscript(e.results[0][0].transcript);
+      submit(e.results[0][0].transcript);
     };
     rec.onerror = () => setListening(false);
     rec.onend = () => {
       setListening(false);
-      if (!gotRef.current) setTyping(true);
+      if (!gotRef.current) {
+        setMissed(true);
+        setTyping(true);
+      }
     };
     recRef.current = rec;
     setListening(true);
@@ -199,14 +216,32 @@ function Speak({
       <div className="speak-body">
         <h1>What needs fixing?</h1>
         <p className="sub">Just say it. I&apos;ll find the cheapest shop.</p>
-        <div className={`mic-ring glass ${listening ? "live" : ""}`}>
-          <button className="mic-btn" onClick={toggleMic} aria-label={listening ? "Stop listening" : "Tap and talk"}>
-            <I.Mic size={72} />
+        <div className={`mic-ring glass ${listening ? "live" : ""} ${thinking ? "busy" : ""}`}>
+          <button
+            className="mic-btn"
+            onClick={toggleMic}
+            disabled={thinking}
+            aria-label={listening ? "Stop listening" : "Start talking"}
+          >
+            {listening ? <I.Stop size={56} /> : <I.Mic size={72} />}
           </button>
         </div>
-        <b style={{ fontSize: 17, fontWeight: 600 }}>{listening ? "Listening…" : "Tap and talk"}</b>
+        <div className="mic-help" aria-live="polite">
+          <b>{thinking ? "Got it" : listening ? "Listening…" : missed ? "I didn't catch that" : "Tap once, then talk"}</b>
+          <p>
+            {thinking
+              ? "Reading your request…"
+              : listening
+                ? "Talk now. Tap the square when you're done."
+                : missed
+                  ? "Tap to try again, or type it below."
+                  : "No need to hold it. I stop when you pause."}
+          </p>
+        </div>
         {error && <p role="alert" style={{ color: "var(--warn, #b3261e)", fontSize: 14 }}>{error}</p>}
-        <p className="example"><i>&ldquo;{EXAMPLE_REQUEST}&rdquo;</i></p>
+        {!listening && !thinking && (
+          <p className="example">Try: <i>&ldquo;{EXAMPLE_REQUEST}&rdquo;</i></p>
+        )}
       </div>
 
       {typing ? (
@@ -214,7 +249,7 @@ function Speak({
           className="type-box"
           onSubmit={(e) => {
             e.preventDefault();
-            if (text.trim()) onTranscript(text.trim());
+            if (text.trim() && !thinking) submit(text.trim());
           }}
         >
           <input

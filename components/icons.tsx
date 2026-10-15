@@ -35,4 +35,5 @@ export const Phone = ({ size = 24 }: P) =>
 export const Shield = ({ size = 24 }: P) =>
   base(size, <><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" /><path d="M9 12l2 2 4-4" /></>);
 export const Play = ({ size = 24 }: P) => base(size, <path d="M8 5.5v13l11-6.5z" fill="currentColor" />);
-export const Pause = ({ size = 24 }: P) => base(size, <path d="M8 5v14M16 5v14" strokeWidth={3} />);
+export const Stop = ({ size = 24 }: P) => base(size, <rect x="6.5" y="6.5" width="11" height="11" rx="2.5" fill="currentColor" />);
+export const Pause =({ size = 24 }: P) => base(size, <path d="M8 5v14M16 5v14" strokeWidth={3} />);
