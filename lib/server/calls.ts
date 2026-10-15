@@ -51,7 +51,7 @@ export function bangkokReferenceTime() {
   return `${text} (Asia/Bangkok)`;
 }
 
-export async function askClaude(system: string, user: string, maxTokens = 300): Promise<string> {
+export async function askClaude(system: string, user: string, maxTokens = 1024): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
   const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -60,6 +60,8 @@ export async function askClaude(system: string, user: string, maxTokens = 300): 
     body: JSON.stringify({
       model: "claude-haiku-5-5",
       max_tokens: maxTokens,
+      // Haiku 5.5 thinks by default and that counts against max_tokens; a short extraction doesn't need it.
+      thinking: { type: "disabled" },
       system,
       messages: [{ role: "user", content: user }],
     }),

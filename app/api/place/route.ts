@@ -87,7 +87,9 @@ async function tidyPlace(text: string): Promise<string | null> {
       headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 60,
+        max_tokens: 256,
+        // Haiku 5.5 thinks by default and that counts against max_tokens; a short rewrite doesn't need it.
+        thinking: { type: "disabled" },
         system: SYSTEM,
         messages: [{ role: "user", content: `<typed>${text}</typed>` }],
       }),

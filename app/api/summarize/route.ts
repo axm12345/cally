@@ -45,7 +45,9 @@ export async function POST(req: Request) {
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 300,
+      max_tokens: 1024,
+      // Haiku 5.5 thinks by default and that counts against max_tokens; this extraction doesn't need it.
+      thinking: { type: "disabled" },
       system: SYSTEM,
       messages: [
         { role: "user", content: `<transcript>${transcript.slice(0, MAX_TRANSCRIPT_CHARS)}</transcript>` },
