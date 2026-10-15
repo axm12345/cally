@@ -2,15 +2,15 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CallAround",
+  title: "Cally",
   description: "Say what needs fixing. We call nearby shops and show the cheapest first.",
-  applicationName: "CallAround",
+  applicationName: "Cally",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
-  appleWebApp: { capable: true, title: "CallAround", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Cally", statusBarStyle: "default" },
   formatDetection: { telephone: false },
   other: { "mobile-web-app-capable": "yes" },
 };
