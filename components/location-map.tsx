@@ -7,11 +7,13 @@ import { usePreferences } from "./preferences";
 export type MapPoint = { lat: number; lon: number };
 const ASOK: MapPoint = { lat: 13.7373, lon: 100.5602 };
 
-export default function LocationMap({ onConfirm, saving }: { onConfirm: (point: MapPoint) => void; saving: boolean }) {
+export default function LocationMap({ onConfirm, saving, radiusKm = 5 }: { onConfirm: (point: MapPoint) => void; saving: boolean; radiusKm?: number }) {
   const { t } = usePreferences();
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
+  const circleRef = useRef<L.Circle | null>(null);
+  useEffect(() => { circleRef.current?.setRadius(radiusKm * 1000); }, [radiusKm]);
   const [point, setPoint] = useState<MapPoint | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -31,9 +33,11 @@ export default function LocationMap({ onConfirm, saving }: { onConfirm: (point: 
     const icon = L.divIcon({ className: "location-map-pin", html: '<svg width="30" height="38" viewBox="0 0 30 38" aria-hidden="true"><path d="M15 36S2 22 2 15a13 13 0 1 1 26 0c0 7-13 21-13 21Z" fill="#7950d6" stroke="white" stroke-width="2"/><circle cx="15" cy="15" r="4" fill="white"/></svg>', iconSize: [30, 38], iconAnchor: [15, 37] });
     const marker = L.marker([initial.lat, initial.lon], { icon, draggable: true, autoPan: true, title: "Drag location pin", keyboard: true }).addTo(map);
     markerRef.current = marker;
+    circleRef.current = L.circle([initial.lat, initial.lon], { radius: radiusKm * 1000, color: "#7950d6", weight: 1.5, dashArray: "5 5", fillOpacity: .06, interactive: false }).addTo(map);
     const select = (position: L.LatLng) => {
       const next = { lat: Math.max(-85, Math.min(85, position.lat)), lon: ((position.lng + 180) % 360 + 360) % 360 - 180 };
       marker.setLatLng([next.lat, next.lon]);
+      circleRef.current?.setLatLng([next.lat, next.lon]);
       setPoint(next);
     };
     marker.on("dragend", () => select(marker.getLatLng()));
@@ -52,7 +56,7 @@ export default function LocationMap({ onConfirm, saving }: { onConfirm: (point: 
         const center = mapRef.current?.getCenter();
         if (!center) return;
         const next = { lat: center.lat, lon: ((center.lng + 180) % 360 + 360) % 360 - 180 };
-        markerRef.current?.setLatLng([next.lat, next.lon]); setPoint(next);
+        markerRef.current?.setLatLng([next.lat, next.lon]); circleRef.current?.setLatLng([next.lat, next.lon]); setPoint(next);
       }}>{t("Pin map center")}</button>
       <button type="button" className="btn btn-primary sm" disabled={!point || saving} onClick={() => {
         if (point) onConfirm(point);

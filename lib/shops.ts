@@ -298,8 +298,10 @@ function startMockCalls(
   void (async () => {
     try {
       let coordinates;
+      let radiusKm = 5;
+      try { const saved = Number(localStorage.getItem("cally-radius-km")); if (Number.isInteger(saved) && saved >= 1 && saved <= 20) radiusKm = saved; } catch {}
       try { const point = JSON.parse(localStorage.getItem("cally-map-point") || "null"); if (point?.label === request.near) coordinates = { lat: point.lat, lon: point.lon }; } catch {}
-      const res = await fetch("/api/demo-shops", { method: "POST", headers: { "content-type": "application/json" }, signal: controller.signal, body: JSON.stringify({ ...request, coordinates }) });
+      const res = await fetch("/api/demo-shops", { method: "POST", headers: { "content-type": "application/json" }, signal: controller.signal, body: JSON.stringify({ ...request, coordinates, radiusKm }) });
       if (!res.ok) throw new Error("Shop lookup failed");
       const data = await res.json();
       if (cancelled) return;

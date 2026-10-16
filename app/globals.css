@@ -380,3 +380,10 @@ a.btn { text-decoration: none; }
 
 .simulation-notice { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--accent-light); color: var(--muted); font-size: 11px; line-height: 1.5; }
 .simulation-notice a { color: var(--accent); }
+
+.radius-picker { padding: 13px 14px; background: var(--accent-light); border-radius: 15px; border: 1px solid var(--line); }
+.radius-picker > label { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600; }
+.radius-picker output { color: var(--accent); background: var(--surface); padding: 4px 9px; border-radius: 99px; font-size: 12px; }
+.radius-picker input { width: 100%; margin: 14px 0 4px; accent-color: #7950d6; cursor: pointer; height: 20px; }
+.radius-scale { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); }
+.radius-picker small { display: block; margin-top: 8px; font-size: 10px; color: var(--muted); line-height: 1.4; }

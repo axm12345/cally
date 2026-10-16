@@ -296,6 +296,8 @@ function AreaSheet({ current, onPick, onClose, }: {
     const { t, uiLanguage } = usePreferences();
     const [text, setText] = useState("");
     const [showMap, setShowMap] = useState(false);
+    const [radiusKm, setRadiusKm] = useState(5);
+    useEffect(() => { try { const saved = Number(localStorage.getItem("cally-radius-km")); if (Number.isInteger(saved) && saved >= 1 && saved <= 20) setRadiusKm(saved); } catch {} }, []);
     const [locating, setLocating] = useState(false);
     const [saving, setSaving] = useState(false);
     const [note, setNote] = useState<string | null>(null);
@@ -333,10 +335,16 @@ function AreaSheet({ current, onPick, onClose, }: {
           <div className="area-heading"><b>{t("Where should I look?")}</b><button type="button" className="map-opener" aria-label={t("Choose on map")} aria-expanded={showMap} aria-controls="location-map-picker" onClick={() => setShowMap(value => !value)}><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2zM9 3v16M15 5v16"/></svg></button></div>
           <button className="round" onClick={onClose} aria-label={t("Close")}><I.Close size={20}/></button>
         </div>
+        <div className="radius-picker">
+          <label htmlFor="shop-radius"><span>{t("Search radius")}</span><output htmlFor="shop-radius">{radiusKm} {uiLanguage === "th" ? "กม." : uiLanguage === "yue" ? "公里" : "km"}</output></label>
+          <input id="shop-radius" type="range" min="1" max="20" step="1" value={radiusKm} aria-label={t("Search radius")} aria-valuetext={radiusKm + " km"} onChange={e => { const radius = Number(e.target.value); setRadiusKm(radius); try { localStorage.setItem("cally-radius-km", String(radius)); } catch {} }}/>
+          <div className="radius-scale"><span>1 km</span><span>20 km</span></div>
+          <small>{t("Straight-line distance from the selected location.")}</small>
+        </div>
         <button className="btn btn-secondary" onClick={useLocation} disabled={locating}>
           <I.Pin size={20}/>{locating ? t("Finding you\u2026") : t("Use my current location")}
         </button>
-        {showMap && <div id="location-map-picker"><LocationMap onConfirm={setMapPoint} saving={saving} /></div>}
+        {showMap && <div id="location-map-picker"><LocationMap onConfirm={setMapPoint} saving={saving} radiusKm={radiusKm} /></div>}
         {note && <p role="alert" className="sheet-note">{note}</p>}
         <form className="type-box" onSubmit={(e) => {
             e.preventDefault();

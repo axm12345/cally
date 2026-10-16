@@ -56,3 +56,5 @@ There is no authentication protecting paid-call endpoints. Keep local until acce
 
 ## Location-based demo update
 The public demo now resolves real business listings for the selected area and repair request through Google Places (GOOGLE_MAPS_API_KEY is server-only). No phone numbers are requested for discovery, and those shops are not called. Conversations and sample prices are explicitly simulated; timings are staggered over roughly 40–65 seconds. View shop listing opens the real listing rather than dialing. U-bot integration was cancelled.
+
+Search radius: location picker now offers a persistent 1–20 km slider, default 5 km. Listing results are filtered by straight-line distance from the map point or resolved typed area; shops beyond the limit are excluded.
