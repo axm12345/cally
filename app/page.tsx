@@ -80,7 +80,6 @@ function CallyPage() {
     };
     return (<main className="app">
       <Settings />
-      {(screen === "speak" || screen === "confirm") && <p className="live-demo-note">Live mode · 2 real phone calls + 3 simulated shops</p>}
       {creditNotice && screen === "options" && <div className="credit-result-note" role="status">{creditNotice}</div>}
       {screen === "speak" && <Speak onTranscript={submitTranscript} error={error} homeArea={homeArea} onHomeArea={setHomeArea}/>}
       {screen === "confirm" && summary && (<Confirm transcript={transcript} summary={summary} onBack={() => setScreen("speak")} onYes={() => { void beginCalling(); }} starting={starting}/>)}
@@ -439,11 +438,11 @@ function Calling({ results, onShow, onCancel, }: {
         <p className="sub" style={{ fontSize: 16 }}>{t("About a minute. You can put your phone down.")}</p>
       </div>
 
-      {<p className="simulation-notice">{t("Mixed demo: the first two slots call configured test phones. The other three conversations and prices are simulated.")}</p>}
+      {isDemo && <p className="simulation-notice">{t("Demo only: real shop listings, simulated conversations and prices. No shops are called.")}</p>}
       {results.length === 0 && <p className="map-hint">{t("Finding shops for your selected area…")}</p>}
       <div className="card shop-list" aria-live="polite">
         {results.map((r) => (<div className="shop-row" key={r.shop_name}>
-            <span>{r.shop_name}<small style={{display:"block",opacity:.65,fontSize:10}}>{r.simulated?"Simulated":"Real test call"}</small></span>
+            <span>{r.shop_name}</span>
             <span className={`st ${r.status}`}>{t(STATUS_LABEL[r.status])}</span>
           </div>))}
       </div>
@@ -474,13 +473,13 @@ function Options({ results, onClose, onOpen, }: {
       </div>
       <div className="scroll">
       <h1 style={{ marginTop: 18 }}>{t("Cheapest first")}</h1>
-      {results.some(r => r.simulated) && <p className="simulation-notice">{t("Mixed demo: two test phones are called; three conversations and prices are simulated.")} <a href="https://maps.google.com" target="_blank" rel="noreferrer">Google Maps</a></p>}
+      {results.some(r => r.simulated) && <p className="simulation-notice">{t("Demo only: real shop listings, simulated conversations and prices. No shops are called.")} <a href="https://maps.google.com" target="_blank" rel="noreferrer">Google Maps</a></p>}
 
       {!top ? (<p className="sub">{results.length === 0 ? t("No matching shop listings were found. Try another area.") : t("No shop picked up yet. Try again in a moment.")}</p>) : (<>
           <div className="top-pick glass">
             <div className="pick-head">
               <button onClick={() => onOpen(top)} style={{ textAlign: "left" }}>
-                <h2>{top.shop_name}</h2><small>{top.simulated?"Simulated quote":"Real test call"}</small>
+                <h2>{top.shop_name}</h2>
               </button>
               <span className="badge">{t("CHEAPEST")}</span>
             </div>
@@ -497,7 +496,7 @@ function Options({ results, onClose, onOpen, }: {
             {rest.map((r) => {
                 const ready = formatReady(r);
                 return (<button className="opt-row" key={r.shop_name} onClick={() => onOpen(r)}>
-                  <span className="name">{r.shop_name}<small style={{display:"block",fontSize:10}}>{r.simulated?"Simulated quote":"Real test call"}</small></span>
+                  <span className="name">{r.shop_name}</span>
                   <span className="price">{formatPrice(r.price_thb, r.price_is_estimate, uiLanguage)}</span>
                   <span className="dim">{r.distance_km ?? "—"} {uiLanguage === "th" ? "กม." : uiLanguage === "yue" ? "公里" : "km"}</span>
                   <span className={ready.late ? "late" : ""}>{r.available_today ? `${t("Today")} ${t(ready.text)}` : t(ready.text)}</span>
@@ -566,7 +565,7 @@ function Details({ shop, onBack, }: {
         </span>
       </div>
 
-      <div className="safe"><I.Shield size={18}/>{shop.simulated ? t("Mixed demo: two test phones are called; three conversations and prices are simulated.") : t("The assistant said it was calling for a customer.")}</div>
+      <div className="safe"><I.Shield size={18}/>{shop.simulated ? t("Demo only: real shop listings, simulated conversations and prices. No shops are called.") : t("The assistant said it was calling for a customer.")}</div>
 
       <div className="chat">
         {shop.transcript.map((l, i) => (<div key={i} className={`bubble ${l.speaker}`}>{l.text}</div>))}

@@ -388,4 +388,3 @@ a.btn { text-decoration: none; }
 .radius-scale { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); }
 .radius-picker small { display: block; margin-top: 8px; font-size: 10px; color: var(--muted); line-height: 1.4; }
 
-.live-demo-note{position:absolute;bottom:80px;left:16px;right:16px;text-align:center;font-size:11px;opacity:.75;z-index:3}
