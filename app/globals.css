@@ -377,3 +377,6 @@ a.btn { text-decoration: none; }
 .credit-stepper input::-webkit-inner-spin-button, .credit-stepper input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 @keyframes quantity-reveal { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .bundle-options button, .bundle-options .pack-check { transition: none; } .custom-credit-editor { animation: none; } }
+
+.simulation-notice { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--accent-light); color: var(--muted); font-size: 11px; line-height: 1.5; }
+.simulation-notice a { color: var(--accent); }

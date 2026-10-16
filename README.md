@@ -53,3 +53,6 @@ Production build and TypeScript passed. Map pin dragging, confirmation and stree
 Web dependency audit reports two affected packages (one moderate, one high via PostCSS/Next.js). Backup service installs previously reported zero. Preserve the lockfile for reproducibility; review upgrades separately instead of audit fix --force. A parent lockfile warning on the original laptop did not prevent building.
 
 There is no authentication protecting paid-call endpoints. Keep local until access control is added; do not expose this configuration publicly. Real payments/credits are not implemented; CALLY-PAYMENTS-STANDBY.md is a proposal. See UPSTREAM-README.md for original project documentation; this README describes the current handoff.
+
+## Location-based demo update
+The public demo now resolves real business listings for the selected area and repair request through Google Places (GOOGLE_MAPS_API_KEY is server-only). No phone numbers are requested for discovery, and those shops are not called. Conversations and sample prices are explicitly simulated; timings are staggered over roughly 40–65 seconds. View shop listing opens the real listing rather than dialing. U-bot integration was cancelled.

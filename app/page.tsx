@@ -320,7 +320,7 @@ function AreaSheet({ current, onPick, onClose, }: {
         setNote(null);
         const label = await placeName(point);
         if (!label) { setSaving(false); setNote(t("Could not name this point. Try a nearby street or type an area.")); return; }
-        try { localStorage.setItem("cally-map-point", JSON.stringify(point)); } catch {}
+        try { localStorage.setItem("cally-map-point", JSON.stringify({ ...point, label })); } catch {}
         onPick(label);
     };
     const setTyped = async (typed: string) => {
@@ -417,6 +417,7 @@ function Calling({ results, onShow, onCancel, }: {
     onCancel: () => void;
 }) {
     const { t, uiLanguage } = usePreferences();
+    const isDemo = results.length === 0 || results.every(r => r.simulated);
     return (<section className="screen">
       <div className="glow" style={{ top: 20, left: 45 }}/>
       <div className="calling-hero">
@@ -425,10 +426,12 @@ function Calling({ results, onShow, onCancel, }: {
         <div className="phone-dot"><I.Phone size={44}/></div>
       </div>
       <div className="center">
-        <h1 style={{ fontSize: 28 }}>{t("Calling shops for you")}</h1>
+        <h1 style={{ fontSize: 28 }}>{isDemo ? t("Simulated shop conversations") : t("Calling shops for you")}</h1>
         <p className="sub" style={{ fontSize: 16 }}>{t("About a minute. You can put your phone down.")}</p>
       </div>
 
+      {isDemo && <p className="simulation-notice">{t("Demo only: real shop listings, simulated conversations and prices. No shops are called.")}</p>}
+      {results.length === 0 && <p className="map-hint">{t("Finding shops for your selected area…")}</p>}
       <div className="card shop-list" aria-live="polite">
         {results.map((r) => (<div className="shop-row" key={r.shop_name}>
             <span>{r.shop_name}</span>
@@ -462,8 +465,9 @@ function Options({ results, onClose, onOpen, }: {
       </div>
       <div className="scroll">
       <h1 style={{ marginTop: 18 }}>{t("Cheapest first")}</h1>
+      {results.some(r => r.simulated) && <p className="simulation-notice">{t("Demo only: real shop listings, simulated conversations and prices. No shops are called.")} <a href="https://maps.google.com" target="_blank" rel="noreferrer">Google Maps</a></p>}
 
-      {!top ? (<p className="sub">{t("No shop picked up yet. Try again in a moment.")}</p>) : (<>
+      {!top ? (<p className="sub">{results.length === 0 ? t("No matching shop listings were found. Try another area.") : t("No shop picked up yet. Try again in a moment.")}</p>) : (<>
           <div className="top-pick glass">
             <div className="pick-head">
               <button onClick={() => onOpen(top)} style={{ textAlign: "left" }}>
@@ -473,7 +477,7 @@ function Options({ results, onClose, onOpen, }: {
             </div>
             <div className="stats">
               <div className="stat"><b className="green">{formatPrice(top.price_thb, top.price_is_estimate, uiLanguage)}</b><small>{t("Price")}</small></div>
-              <div className="stat"><b>{top.distance_km} {uiLanguage === "th" ? "กม." : uiLanguage === "yue" ? "公里" : "km"}</b><small>{t("From home")}</small></div>
+              <div className="stat"><b>{top.distance_km ?? "—"} {uiLanguage === "th" ? "กม." : uiLanguage === "yue" ? "公里" : "km"}</b><small>{t("From home")}</small></div>
               <div className="stat"><b>{t(formatReady(top).text)}</b><small>{top.available_today ? t("Ready today") : t("Ready")}</small></div>
             </div>
             <CallShopButton shop={top} small/>
@@ -486,7 +490,7 @@ function Options({ results, onClose, onOpen, }: {
                 return (<button className="opt-row" key={r.shop_name} onClick={() => onOpen(r)}>
                   <span className="name">{r.shop_name}</span>
                   <span className="price">{formatPrice(r.price_thb, r.price_is_estimate, uiLanguage)}</span>
-                  <span className="dim">{r.distance_km} {uiLanguage === "th" ? "กม." : uiLanguage === "yue" ? "公里" : "km"}</span>
+                  <span className="dim">{r.distance_km ?? "—"} {uiLanguage === "th" ? "กม." : uiLanguage === "yue" ? "公里" : "km"}</span>
                   <span className={ready.late ? "late" : ""}>{r.available_today ? `${t("Today")} ${t(ready.text)}` : t(ready.text)}</span>
                 </button>);
             })}
@@ -504,6 +508,7 @@ function CallShopButton({ shop, small }: {
     small?: boolean;
 }) {
     const { t, uiLanguage } = usePreferences();
+    if (shop.simulated) return shop.source_url ? <a className={`btn btn-primary ${small ? "sm" : ""}`} href={shop.source_url} target="_blank" rel="noreferrer">{t("View shop listing")}</a> : null;
     return (<a className={`btn btn-primary ${small ? "sm" : ""}`} href={`tel:${shop.phone.replace(/[^\d+]/g, "")}`}>
       <I.Phone size={20}/>{t("Call this shop")}</a>);
 }
@@ -546,13 +551,13 @@ function Details({ shop, onBack, }: {
       <div className="scroll">
       <div className="chips">
         <span className="chip g">{formatPrice(shop.price_thb, shop.price_is_estimate, uiLanguage)}</span>
-        <span className="chip">{shop.distance_km} {uiLanguage === "th" ? "กม. จากบ้าน" : uiLanguage === "yue" ? "公里，離屋企" : "km from home"}</span>
+        <span className="chip">{shop.distance_km ?? "—"} {uiLanguage === "th" ? "กม. จากบ้าน" : uiLanguage === "yue" ? "公里，離屋企" : "km from home"}</span>
         <span className={`chip ${ready.late ? "w" : ""}`}>
           {shop.available_today ? `${t("Ready today")} ${t(ready.text)}` : `${t("Ready")} ${t(ready.text)}`}
         </span>
       </div>
 
-      <div className="safe"><I.Shield size={18}/>{t("The assistant said it was calling for a customer.")}</div>
+      <div className="safe"><I.Shield size={18}/>{shop.simulated ? t("Demo only: real shop listings, simulated conversations and prices. No shops are called.") : t("The assistant said it was calling for a customer.")}</div>
 
       <div className="chat">
         {shop.transcript.map((l, i) => (<div key={i} className={`bubble ${l.speaker}`}>{l.text}</div>))}

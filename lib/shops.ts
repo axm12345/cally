@@ -16,7 +16,10 @@ export type ShopResult = {
   status: CallStatus;
   price_thb: number | null;
   price_is_estimate: boolean; // true: show as "from ฿X"
-  distance_km: number;
+  distance_km: number | null;
+  simulated?: boolean;
+  source_url?: string;
+  address?: string;
   ready_time: string | null; // ISO 8601
   available_today: boolean;
   transcript: TranscriptLine[];
@@ -133,11 +136,11 @@ export const SHOP_DIRECTORY = MOCK_SHOPS.map(({ shop_name, phone, distance_km })
 
 /** When each mock call changes state, in ms from the start of the batch. */
 const MOCK_TIMELINE: Record<string, { talking: number; end: number }> = {
-  "Soi 11 Mobile": { talking: 1500, end: 5500 },
-  "Nana Phone Care": { talking: 2300, end: 7000 },
-  "Asok Screen Fix": { talking: 3000, end: 8200 },
-  "Terminal Fix Bar": { talking: 4200, end: 9500 },
-  "Sukhumvit Repair Hub": { talking: Infinity, end: 10500 },
+  "Soi 11 Mobile": { talking: 3000, end: 42000 },
+  "Nana Phone Care": { talking: 5000, end: 51000 },
+  "Asok Screen Fix": { talking: 6500, end: 58000 },
+  "Terminal Fix Bar": { talking: 8500, end: 66000 },
+  "Sukhumvit Repair Hub": { talking: Infinity, end: 32000 },
 };
 
 /* ---------- the three functions the UI uses ---------- */
@@ -201,7 +204,7 @@ export function startCalls(
     }
     if (cancelled) return;
     if (started.mode !== "live" || !started.calls) {
-      cancelMock = startMockCalls(onUpdate, onFinish);
+      cancelMock = startMockCalls(onUpdate, onFinish, request);
       return;
     }
 
@@ -287,27 +290,50 @@ export function startCalls(
 function startMockCalls(
   onUpdate: (results: ShopResult[]) => void,
   onFinish: (results: ShopResult[]) => void,
+  request: RequestSummary,
 ): () => void {
-  let results: ShopResult[] = MOCK_SHOPS.map((s) => ({ ...s, status: "ringing" as CallStatus }));
+  let cancelled = false;
+  const controller = new AbortController();
   const timers: ReturnType<typeof setTimeout>[] = [];
-  const set = (name: string, status: CallStatus) => {
-    results = results.map((r) => (r.shop_name === name ? { ...r, status } : r));
-    onUpdate(results);
-  };
-
-  onUpdate(results);
-  let remaining = MOCK_SHOPS.length;
-  for (const shop of MOCK_SHOPS) {
-    const t = MOCK_TIMELINE[shop.shop_name];
-    if (Number.isFinite(t.talking)) timers.push(setTimeout(() => set(shop.shop_name, "talking"), t.talking));
-    timers.push(
-      setTimeout(() => {
-        set(shop.shop_name, shop.status);
-        if (--remaining === 0) onFinish(results);
-      }, t.end),
-    );
-  }
-  return () => timers.forEach(clearTimeout);
+  void (async () => {
+    try {
+      let coordinates;
+      try { const point = JSON.parse(localStorage.getItem("cally-map-point") || "null"); if (point?.label === request.near) coordinates = { lat: point.lat, lon: point.lon }; } catch {}
+      const res = await fetch("/api/demo-shops", { method: "POST", headers: { "content-type": "application/json" }, signal: controller.signal, body: JSON.stringify({ ...request, coordinates }) });
+      if (!res.ok) throw new Error("Shop lookup failed");
+      const data = await res.json();
+      if (cancelled) return;
+      const listings = (data.shops || []) as Pick<ShopResult, "shop_name" | "phone" | "distance_km" | "address" | "source_url" | "simulated">[];
+      const plans = listings.slice(0,5).map((listing, i) => {
+        const sample = MOCK_SHOPS[i];
+        const timing = MOCK_TIMELINE[sample.shop_name];
+        const seconds = Math.round((timing.end - (Number.isFinite(timing.talking) ? timing.talking : timing.end)) / 1000);
+        return { shop: { ...sample, ...listing, simulated: true, duration: Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2,"0"), transcript: sample.status === "no_answer" ? [] : [
+          { speaker: "agent" as const, text: "SIMULATED: Asking about " + request.fix + " for " + request.device + "." },
+          { speaker: "shop" as const, text: "Illustrative demo response only. This business has not been contacted." },
+          { speaker: "agent" as const, text: "Example comparison price: ฿" + sample.price_thb + ". This is not a quote from this business." },
+        ] }, timing };
+      });
+      let results: ShopResult[] = plans.map(({shop}) => ({ ...shop, status: "ringing" }));
+      onUpdate(results);
+      if (!plans.length) return onFinish([]);
+      let remaining = plans.length;
+      for (const { shop, timing } of plans) {
+        if (Number.isFinite(timing.talking)) timers.push(setTimeout(() => {
+          if (cancelled) return;
+          results = results.map(r => r.shop_name === shop.shop_name ? { ...r, status: "talking" } : r);
+          onUpdate(results);
+        }, timing.talking));
+        timers.push(setTimeout(() => {
+          if (cancelled) return;
+          results = results.map(r => r.shop_name === shop.shop_name ? shop : r);
+          onUpdate(results);
+          if (--remaining === 0) onFinish(results);
+        }, timing.end));
+      }
+    } catch { if (!cancelled) { onUpdate([]); onFinish([]); } }
+  })();
+  return () => { cancelled = true; controller.abort(); timers.forEach(clearTimeout); };
 }
 
 /** Answered shops, cheapest first, plus how many were left out. */
