@@ -51,7 +51,7 @@ export async function POST(req: Request) {
   const caller = callerConfig();
   const cfg = elevenLabsConfig();
   const numbers = liveShopNumbers();
-  const language = callLanguage();
+  const language = body.language === "en" || body.language === "th" || body.language === "yue" ? body.language : callLanguage() ?? "th";
   const useCaller = !!caller && (process.env.CALL_MODE?.trim() === "caller" || !cfg);
 
   if (caller && useCaller) {
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
           const res = await callerFetch(caller, "/calls", {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ number, language: caller.language, ...mission(shop.shop_name) }),
+            body: JSON.stringify({ number, language, ...mission(shop.shop_name) }),
           });
           const data = await res.json().catch(() => null);
           if (!res.ok || typeof data?.id !== "string") {

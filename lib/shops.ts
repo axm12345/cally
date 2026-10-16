@@ -166,6 +166,7 @@ export function startCalls(
   request: RequestSummary,
   onUpdate: (results: ShopResult[]) => void,
   onFinish: (results: ShopResult[]) => void,
+  language: "en" | "th" | "yue" = "th",
 ): () => void {
   let cancelled = false;
   let cancelMock: (() => void) | null = null;
@@ -192,7 +193,7 @@ export function startCalls(
       const res = await fetch("/api/calls/start", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ fix: request.fix, device: request.device, when: request.when, near: request.near }),
+        body: JSON.stringify({ fix: request.fix, device: request.device, when: request.when, near: request.near, language }),
       });
       started = await res.json();
     } catch {
@@ -319,8 +320,8 @@ export function rankResults(results: ShopResult[]) {
 
 /* ---------- display helpers ---------- */
 
-export const formatPrice = (n: number | null, estimate = false) =>
-  n === null ? "-" : `${estimate ? "from " : ""}฿${n.toLocaleString("en-US")}`;
+export const formatPrice = (n: number | null, estimate = false, language: "en" | "th" | "yue" = "en") =>
+  n === null ? "-" : `${estimate ? (language === "th" ? "เริ่มต้น " : language === "yue" ? "由 " : "from ") : ""}฿${n.toLocaleString("en-US")}`;
 
 export function formatReady(r: ShopResult): { text: string; late: boolean } {
   if (!r.ready_time) return { text: "-", late: true };

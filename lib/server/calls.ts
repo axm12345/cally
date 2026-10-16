@@ -22,7 +22,7 @@ export const liveShopNumbers = () => (process.env.LIVE_SHOP_NUMBERS ?? "").split
 /** CALL_LANGUAGE: en | th | yue; unset uses the agent's own default language. */
 export const callLanguage = () => {
   const l = process.env.CALL_LANGUAGE?.trim() ?? "";
-  return ["en", "th", "yue"].includes(l) ? l : undefined;
+  return ["en", "th", "yue"].includes(l) ? l : "th";
 };
 
 export const elevenLabsFetch = (path: string, apiKey: string, init?: RequestInit) =>
