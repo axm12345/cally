@@ -57,7 +57,7 @@ export async function POST(req: Request) {
   if (caller && useCaller) {
     calls = await Promise.all(
       SHOP_DIRECTORY.map(async (shop, i): Promise<StartedCall> => {
-        const number = caller.numbers[i];
+        const number = i < 3 ? caller.numbers[i] : undefined;
         if (!number) return { shop_name: shop.shop_name, conversation_id: null, mock: true };
         try {
           const res = await callerFetch(caller, "/calls", {
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
     const path = cfg.telephony === "twilio" ? "/v1/convai/twilio/outbound-call" : "/v1/convai/sip-trunk/outbound-call";
     calls = await Promise.all(
       SHOP_DIRECTORY.map(async (shop, i): Promise<StartedCall> => {
-        const raw = numbers[i];
+        const raw = i < 3 ? numbers[i] : undefined;
         if (!raw) return { shop_name: shop.shop_name, conversation_id: null, mock: true };
         const number = raw.startsWith("+") ? raw : `+${raw}`;
         try {

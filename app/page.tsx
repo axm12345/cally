@@ -5,6 +5,7 @@ import { PreferencesProvider, Settings, usePreferences } from "@/components/pref
 import dynamic from "next/dynamic";
 import type { MapPoint } from "@/components/location-map";
 const LocationMap = dynamic(() => import("@/components/location-map"), { ssr: false });
+import { SearchCreditsProvider, useSearchCredits } from "@/components/search-credits";
 import * as I from "@/components/icons";
 type Screen = "speak" | "confirm" | "calling" | "options" | "details";
 const STATUS_LABEL: Record<CallStatus, string> = {
@@ -19,6 +20,10 @@ const CALL_TIMEOUT_MS = 180000;
 function CallyPage() {
     const { t, uiLanguage } = usePreferences();
     const { voiceLanguage } = usePreferences();
+    const credits = useSearchCredits();
+    const [starting, setStarting] = useState(false);
+    const [creditNotice, setCreditNotice] = useState("");
+    const reservationRef = useRef<string | null>(null);
     const [screen, setScreen] = useState<Screen>("speak");
     const [transcript, setTranscript] = useState("");
     const [summary, setSummary] = useState<RequestSummary | null>(null);
@@ -42,19 +47,29 @@ function CallyPage() {
             setError(t("Couldn't read that request. Check the server log and try again."));
         }
     }, [homeArea]);
-    const beginCalling = () => {
-        if (!summary || summary.fix === NOT_MENTIONED)
+    const beginCalling = async () => {
+        if (starting || !summary || summary.fix === NOT_MENTIONED)
             return;
+        setStarting(true);
+        const reservation = await credits.reserve();
+        setStarting(false);
+        if (!reservation) return;
+        reservationRef.current = reservation;
+        setCreditNotice("");
         setScreen("calling");
         let timeout: ReturnType<typeof setTimeout>;
         const finish = () => {
             clearTimeout(timeout);
+            const id = reservationRef.current; reservationRef.current = null;
+            if (id) void credits.release(id).then(() => setCreditNotice(uiLanguage === "th" ? "คืนเครดิตทดลองแล้ว · ไม่คิดเงินจากราคาจำลอง" : uiLanguage === "yue" ? "已退回示範額度 · 唔會按模擬報價收費" : "Demo credit returned · mock quotes are never billed")).catch(() => setCreditNotice(uiLanguage === "th" ? "เครดิตที่สำรองไว้จะคืนอัตโนมัติภายใน 10 นาที" : uiLanguage === "yue" ? "預留額度會喺十分鐘內自動退回" : "Reserved credit will be released after 10 minutes"));
             setScreen((s) => (s === "calling" ? "options" : s));
         };
         const cancel = startCalls(summary, setResults, finish, voiceLanguage);
         timeout = setTimeout(finish, CALL_TIMEOUT_MS);
         cancelRef.current = () => {
             clearTimeout(timeout);
+            const id = reservationRef.current; reservationRef.current = null;
+            if (id) void credits.release(id).catch(() => {});
             cancel();
         };
     };
@@ -65,8 +80,9 @@ function CallyPage() {
     };
     return (<main className="app">
       <Settings />
+      {creditNotice && screen === "options" && <div className="credit-result-note" role="status">{creditNotice}</div>}
       {screen === "speak" && <Speak onTranscript={submitTranscript} error={error} homeArea={homeArea} onHomeArea={setHomeArea}/>}
-      {screen === "confirm" && summary && (<Confirm transcript={transcript} summary={summary} onBack={() => setScreen("speak")} onYes={beginCalling}/>)}
+      {screen === "confirm" && summary && (<Confirm transcript={transcript} summary={summary} onBack={() => setScreen("speak")} onYes={() => { void beginCalling(); }} starting={starting}/>)}
       {screen === "calling" && (<Calling results={results} onShow={() => stopCalling("options")} onCancel={() => stopCalling("speak")}/>)}
       {screen === "options" && (<Options results={results} onClose={() => setScreen("speak")} onOpen={(s) => {
                 setSelected(s);
@@ -334,11 +350,12 @@ function AreaSheet({ current, onPick, onClose, }: {
     </div>);
 }
 /* ---------- 2 · Confirm ---------- */
-function Confirm({ transcript, summary, onBack, onYes, }: {
+function Confirm({ transcript, summary, onBack, onYes, starting, }: {
     transcript: string;
     summary: RequestSummary;
     onBack: () => void;
     onYes: () => void;
+    starting: boolean;
 }) {
     const { t, uiLanguage } = usePreferences();
     const listen = () => {
@@ -386,8 +403,9 @@ function Confirm({ transcript, summary, onBack, onYes, }: {
       {!fixMissing && deviceMissing && (<p className="warn-note">{t("Shops may need the model for a price. Continue anyway?")}</p>)}
 
       <div className="spacer"/>
+      <p className="demo-search-note">{uiLanguage === "th" ? "สำรอง 1 เครดิตทดลอง แล้วคืนให้เมื่อจบ · ไม่มีการเก็บเงินจริง" : uiLanguage === "yue" ? "預留 1 個示範額度，完成後退回 · 唔收真錢" : "Reserves 1 demo credit, returned when finished · no real charge"}</p>
       <div className="stack">
-        <button className="btn btn-primary" onClick={onYes} disabled={fixMissing} style={fixMissing ? { opacity: 0.5 } : undefined}><I.Check size={22}/>{t("Yes, find me a shop")}</button>
+        <button className="btn btn-primary" onClick={onYes} disabled={fixMissing || starting} style={fixMissing ? { opacity: 0.5 } : undefined}><I.Check size={22}/>{starting ? "…" : t("Yes, find me a shop")}</button>
         <button className="btn btn-secondary" onClick={onBack}><I.Mic size={20}/>{t("No, say it again")}</button>
       </div>
     </section>);
@@ -549,4 +567,4 @@ function Details({ shop, onBack, }: {
       </div>
     </section>);
 }
-export default function Page() { return <PreferencesProvider><CallyPage /></PreferencesProvider>; }
+export default function Page() { return <PreferencesProvider><SearchCreditsProvider><CallyPage /></SearchCreditsProvider></PreferencesProvider>; }

@@ -294,3 +294,86 @@ a.btn { text-decoration: none; }
 .map-actions .btn { height: 42px; padding: 0 14px; font-size: 13px; }
 .map-actions .btn-text { font-size: 12px; text-align: left; }
 .map-actions button:disabled { opacity: .45; cursor: default; }
+
+/* Search credits and explicitly simulated payment preview. */
+.brand { margin-right: 96px; }
+.pill.area { max-width: calc(100% - 150px); }
+.credits-trigger { position: absolute; top: calc(env(safe-area-inset-top) + 24px); right: 59px; z-index: 5; height: 34px; padding: 0 9px; display: flex; gap: 4px; align-items: center; border: 1px solid var(--line); border-radius: 99px; background: var(--surface); color: var(--accent); font-size: 12px; font-weight: 700; }
+.credits-dialog { max-height: calc(100dvh - 32px); overflow-y: auto; }
+.demo-label { display: inline-block; color: var(--muted); font-size: 10px; letter-spacing: .06em; font-weight: 700; }
+.credit-balance { display: flex; gap: 12px; align-items: center; margin: 17px 0 8px; }
+.credit-balance > b { font-size: 42px; line-height: 1; letter-spacing: -2px; color: var(--accent); }
+.credit-balance span { font-size: 13px; color: var(--muted); }
+.credit-balance small { display: block; margin-top: 4px; }
+.credit-description, .credit-footnote { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 12px 0; }
+.credit-footnote { font-size: 11px; margin-bottom: 0; }
+.bundle-options { display: flex; gap: 10px; margin: 16px 0; }
+.bundle-options button { flex: 1; border: 1px solid var(--line); border-radius: 14px; min-height: 64px; background: var(--bg); }
+.bundle-options b { font-size: 23px; margin-right: 7px; }
+.bundle-options span { font-size: 12px; color: var(--muted); }
+.bundle-options .selected { border-color: var(--accent); background: var(--accent-light); }
+.payment-methods { padding: 0; margin: 0; border: 0; }
+.payment-methods legend { font-size: 12px; color: var(--muted); padding-bottom: 8px; }
+.payment-methods label { display: flex; align-items: center; gap: 9px; padding: 11px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; }
+.payment-methods label.selected { border-color: var(--accent); }
+.payment-methods input { accent-color: #7950d6; }
+.payment-methods b { font-size: 14px; }
+.payment-methods small { display: block; font-size: 11px; color: var(--muted); margin-top: 3px; }
+.payment-methods em { margin-left: auto; font-style: normal; font-size: 12px; color: var(--accent); background: var(--accent-light); border-radius: 8px; padding: 5px 7px; }
+.checkout-totals { margin: 14px 0; display: grid; gap: 9px; font-size: 13px; }
+.checkout-totals > div { display: flex; justify-content: space-between; gap: 8px; }
+.checkout-totals .discount { color: var(--accent); }
+.checkout-totals .total { padding-top: 10px; border-top: 1px solid var(--line); font-size: 17px; }
+.credits-buy { width: 100%; height: 46px; font-size: 14px; }
+.credits-buy:disabled { opacity: .5; }
+.demo-checkout { text-align: center; padding: 8px 0; }
+.demo-checkout h3 { font-size: 20px; }
+.demo-checkout > strong { font-size: 32px; color: var(--accent); }
+.demo-checkout p { font-size: 13px; line-height: 1.6; color: var(--muted); }
+.demo-checkout .btn-text { margin-top: 14px; font-size: 13px; }
+.credit-message { padding: 10px; font-size: 12px; border-radius: 10px; background: var(--accent-light); color: var(--accent); }
+.credit-history { font-size: 12px; margin-top: 14px; color: var(--muted); }
+.credit-history summary { cursor: pointer; padding: 5px 0; }
+.credit-history > div { display: flex; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 11px; }
+.demo-search-note { font-size: 11px; color: var(--muted); text-align: center; line-height: 1.5; }
+.credit-result-note { position: absolute; bottom: 12px; left: 18px; right: 18px; z-index: 4; border-radius: 14px; padding: 10px; background: var(--accent-light); color: var(--accent); font-size: 11px; text-align: center; pointer-events: none; }
+
+.credits-trigger { right: calc(max(0px, (100vw - 430px) / 2) + 59px); }
+
+.utopia-reference { display: inline-block; margin-top: 10px; font-size: 12px; color: var(--accent); text-underline-offset: 3px; }
+
+.payment-methods .utopia-saving { font-size: 9px; font-weight: 700; white-space: nowrap; color: #17633b; background: #e3f5e9; padding: 3px 6px; }
+[data-theme="dark"] .payment-methods .utopia-saving { color: #9ee6b4; background: #163a26; }
+.promptpay-preview { margin-top: 15px; }
+.promptpay-preview img { display: block; width: min(228px, 100%); height: auto; margin: 10px auto; border-radius: 12px; background: white; }
+.promptpay-preview small { font-size: 11px; color: var(--muted); }
+.qr-reference-warning { border-radius: 10px; background: var(--warn-bg); color: var(--warn) !important; padding: 10px; font-size: 11px !important; line-height: 1.5; }
+.debit-preview { text-align: left; margin-top: 18px; padding: 13px; border: 1px solid var(--line); border-radius: 14px; }
+.debit-preview > span { display: block; color: var(--muted); font-size: 11px; margin-bottom: 12px; }
+.debit-preview label { display: block; font-size: 11px; color: var(--muted); }
+.debit-preview input { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line); padding: 9px; border-radius: 8px; margin: 5px 0 10px; font-size: 13px; }
+.debit-preview > div { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* Compact 2 x 2 credit packs, with a separate custom quantity stepper. */
+.bundle-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 16px 0 12px; }
+.bundle-options button { position: relative; min-height: 72px; min-width: 0; display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 7px; padding: 15px 14px; border: 1px solid var(--line); border-radius: 15px; background: var(--bg); text-align: left; transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease; }
+.bundle-options b { font-size: 24px; letter-spacing: -.6px; margin: 0; line-height: 1; }
+.bundle-options span { font-size: 12px; color: var(--muted); }
+.bundle-options button:hover { border-color: var(--accent); }
+.bundle-options button.selected { border-color: var(--accent); background: var(--accent-light); box-shadow: inset 0 0 0 .5px var(--accent); }
+.bundle-options .pack-check { position: absolute; top: 6px; right: 7px; font-size: 10px; color: var(--accent); opacity: 0; transform: scale(.6); transition: opacity 160ms ease, transform 180ms ease; }
+.bundle-options .selected .pack-check { opacity: 1; transform: scale(1); }
+.bundle-options .custom-pack { flex-direction: column; align-items: flex-start; justify-content: center; gap: 6px; }
+.bundle-options .custom-pack b { font-size: 17px; letter-spacing: -.3px; }
+.bundle-options .custom-pack > span:not(.pack-check) { font-size: 10px; }
+.custom-credit-editor { display: flex; align-items: center; justify-content: space-between; gap: 9px; margin: 0 0 16px; padding: 12px; background: var(--accent-light); border: 1px solid var(--line); border-radius: 14px; animation: quantity-reveal 180ms ease-out both; }
+.custom-credit-editor > label { font-size: 12px; line-height: 1.4; }
+.custom-credit-editor small { display: block; margin-top: 3px; font-size: 10px; color: var(--muted); }
+.credit-stepper { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 11px; padding: 3px; background: var(--surface); flex: none; }
+.credit-stepper button { width: 30px; height: 34px; border-radius: 8px; font-size: 19px; color: var(--accent); }
+.credit-stepper button:hover { background: var(--accent-light); }
+.credit-stepper button:disabled { opacity: .3; cursor: default; }
+.credit-stepper input { width: 46px; padding: 0; border: 0; border-radius: 3px; background: transparent; color: var(--text); font-size: 15px; font-weight: 700; text-align: center; appearance: textfield; -moz-appearance: textfield; }
+.credit-stepper input::-webkit-inner-spin-button, .credit-stepper input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+@keyframes quantity-reveal { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .bundle-options button, .bundle-options .pack-check { transition: none; } .custom-credit-editor { animation: none; } }

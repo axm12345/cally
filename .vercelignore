@@ -7,3 +7,7 @@
 caller/
 callaround-handoff.md
 .claude/
+
+.cally-data/
+tests/
+LOCAL-ASSEMBLY.md

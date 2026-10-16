@@ -14,3 +14,6 @@ next-env.d.ts
 # Local tooling and private team notes
 .claude/
 callaround-handoff.md
+
+# Local-only demo payment database
+.cally-data/

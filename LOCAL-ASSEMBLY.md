@@ -26,3 +26,6 @@ Small settings button, persistent light/dark theme, English/Thai UI, and separat
 
 ## Map location picker
 Added a small map toggle in the area sheet using Leaflet and OpenStreetMap tiles. Supports dragging the pin, clicking a point, panning/zooming and pinning the map center. Only confirmation sends the selected point to the existing location-name endpoint, which uses OpenStreetMap reverse geocoding. No Google API key is used. The last confirmed pin is stored locally for reopening; this does not implement live shop discovery. TypeScript and production build passed. No paid phone calls were made.
+
+## Demo credit checkout implemented
+See PAYMENTS-INTEGRATION.md for exact scope. Local demo credit wallet, simulated U-topia checkout with 5% discount and idempotent server ledger are implemented. Live payment connection and U-bot delegation remain unavailable and are explicitly labeled as such. No real transactions or paid calls were made for payment testing.
