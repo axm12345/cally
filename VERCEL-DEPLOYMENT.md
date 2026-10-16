@@ -14,3 +14,5 @@ Local SQLite data is not uploaded. Hosted credit state uses a signed, HttpOnly, 
 The official U-topia reference is https://u-topia.com/; it is not an implemented provider endpoint. No U-bot spending authorization is claimed.
 
 Validation: production build and hosted-cookie checks passed (state across requests, duplicate approvals/releases, QR alternation, invalid-signature handling and refusal of live-payment mode). No real payments or phone calls were made for deployment preparation.
+
+Live test mode: two fixed server-side SHOWCASE_TARGET_NUMBERS (comma-separated), plus three simulated slots. ELEVENLABS_API_KEY, ELEVENLABS_AGENT_ID and ELEVENLABS_PHONE_NUMBER_ID are stored only in Vercel environment settings. No SQLite needed for call startup. The warm-instance guard is best-effort only, not a global spending cap; the public endpoint has no passcode. Starting a batch incurs two call attempts.

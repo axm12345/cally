@@ -195,12 +195,13 @@ export function startCalls(
     try {
       const res = await fetch("/api/calls/start", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", "x-showcase-attempt": crypto.randomUUID() },
         body: JSON.stringify({ fix: request.fix, device: request.device, when: request.when, near: request.near, language }),
       });
       started = await res.json();
+      if (!res.ok) { onUpdate(SHOP_DIRECTORY.map(s=>blank(s,"failed"))); onFinish([]); return; }
     } catch {
-      started = { mode: "mock" };
+      onUpdate(SHOP_DIRECTORY.map(s=>blank(s,"failed"))); onFinish([]); return;
     }
     if (cancelled) return;
     if (started.mode !== "live" || !started.calls) {
@@ -208,7 +209,7 @@ export function startCalls(
       return;
     }
 
-    let results = SHOP_DIRECTORY.map((s) => blank(s, "ringing"));
+    let results = SHOP_DIRECTORY.map((s,i) => ({ ...blank(s,"ringing"), simulated: i>=2, ...(i>=2?{phone:""}:{}) }));
     const open = new Set<string>();
     const ids = new Map(started.calls.map((c) => [c.shop_name, c.conversation_id]));
     const mockNames = new Set(started.calls.filter((c) => c.mock).map((c) => c.shop_name));
@@ -230,7 +231,8 @@ export function startCalls(
 
     // Shops that aren't called live play their mock result on the mock timeline.
     for (const name of mockNames) {
-      const mock = MOCK_SHOPS.find((s) => s.shop_name === name);
+      const template = MOCK_SHOPS.find((s) => s.shop_name === name);
+      const mock = template ? { ...template, simulated: true, phone: "" } : undefined;
       const t = MOCK_TIMELINE[name];
       if (!mock || !t) {
         done(name);
