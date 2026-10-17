@@ -35,6 +35,8 @@ function CallyPage() {
     const [homeArea, setHomeAreaState] = useState(DEFAULT_HOME_AREA);
     // False until the user picks an area, so the default (Asok) is never used silently.
     const [areaChosen, setAreaChosen] = useState(false);
+    // True when the request itself named the area, so the default-area warning doesn't apply.
+    const [nearSaid, setNearSaid] = useState(false);
     useEffect(() => { try { const saved = localStorage.getItem("cally-area"); if (saved) { setHomeAreaState(saved); setAreaChosen(true); } } catch {} }, []);
     const setHomeArea = (area: string) => {
         setHomeAreaState(area);
@@ -55,6 +57,7 @@ function CallyPage() {
             const s = await getRequestSummary(text);
             // A place named in the spoken request wins; otherwise use the home area.
             setSummary({ ...s, near: s.near.trim() || homeArea });
+            setNearSaid(!!s.near.trim());
             setScreen("confirm");
         }
         catch (err) {
@@ -140,7 +143,7 @@ function CallyPage() {
       <Settings />
       {creditNotice && screen === "options" && !callsRunning && <div className="credit-result-note" role="status">{creditNotice}</div>}
       {screen === "speak" && <Speak onTranscript={submitTranscript} error={error} homeArea={homeArea} areaChosen={areaChosen} onHomeArea={setHomeArea} draft={speakDraft} onShowLast={results.length ? () => setScreen("options") : undefined}/>}
-      {screen === "confirm" && summary && (<Confirm transcript={transcript} summary={summary} areaChosen={areaChosen} onChange={setSummary} onEditArea={() => setAreaSheet(true)} onBack={() => { setSpeakDraft(transcript); setScreen("speak"); }} onYes={() => { void beginCalling(); }} starting={starting}/>)}
+      {screen === "confirm" && summary && (<Confirm transcript={transcript} summary={summary} areaChosen={areaChosen || nearSaid}onChange={setSummary} onEditArea={() => setAreaSheet(true)} onBack={() => { setSpeakDraft(transcript); setScreen("speak"); }} onYes={() => { void beginCalling(); }} starting={starting}/>)}
       {screen === "calling" && (<Calling results={results} onShow={() => setScreen("options")} onCancel={() => stopCalling("speak")}/>)}
       {screen === "options" && (<Options results={results} outcome={outcome} running={callsRunning} onClose={() => stopCalling("speak")} onRetry={() => setScreen("confirm")} onWiden={() => setAreaSheet(true)} onOpen={(s) => {
                 setSelected(s);
