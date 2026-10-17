@@ -26,18 +26,30 @@ function CallyPage() {
     const reservationRef = useRef<string | null>(null);
     const [screen, setScreen] = useState<Screen>("speak");
     const [transcript, setTranscript] = useState("");
+    // Prefills the type box when the user goes back from "Is this right?" to correct their request.
+    const [speakDraft, setSpeakDraft] = useState("");
     const [summary, setSummary] = useState<RequestSummary | null>(null);
     const [results, setResults] = useState<ShopResult[]>([]);
+    const [callsRunning, setCallsRunning] = useState(false);
     const [selected, setSelected] = useState<ShopResult | null>(null);
-    const [homeArea, setHomeArea] = useState(DEFAULT_HOME_AREA);
+    const [homeArea, setHomeAreaState] = useState(DEFAULT_HOME_AREA);
+    // False until the user picks an area, so the default (Asok) is never used silently.
+    const [areaChosen, setAreaChosen] = useState(false);
+    useEffect(() => { try { const saved = localStorage.getItem("cally-area"); if (saved) { setHomeAreaState(saved); setAreaChosen(true); } } catch {} }, []);
+    const setHomeArea = (area: string) => {
+        setHomeAreaState(area);
+        setAreaChosen(true);
+        try { localStorage.setItem("cally-area", area); } catch {}
+    };
     const [outcome, setOutcome] = useState<SearchOutcome | null>(null);
-    // Area sheet opened from the results screen to widen the search for the same request.
-    const [retrySheet, setRetrySheet] = useState(false);
+    // Area sheet opened from the confirm or results screen for the same request.
+    const [areaSheet, setAreaSheet] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const cancelRef = useRef<(() => void) | null>(null);
     useEffect(() => () => cancelRef.current?.(), []);
     const submitTranscript = useCallback(async (text: string) => {
         setTranscript(text);
+        setSpeakDraft("");
         setError(null);
         try {
             const s = await getRequestSummary(text);
@@ -47,9 +59,9 @@ function CallyPage() {
         }
         catch (err) {
             console.error(err);
-            setError(t("Couldn't read that request. Check the server log and try again."));
+            setError(t("Sorry, something went wrong reading your request. Please try again."));
         }
-    }, [homeArea]);
+    }, [homeArea, t]);
     const beginCalling = async () => {
         if (starting || !summary || summary.fix === NOT_MENTIONED)
             return;
@@ -60,10 +72,14 @@ function CallyPage() {
         reservationRef.current = reservation;
         setCreditNotice("");
         setOutcome(null);
+        setResults([]);
+        setCallsRunning(true);
         setScreen("calling");
         let timeout: ReturnType<typeof setTimeout>;
         const finish = (_results?: ShopResult[], searchOutcome?: SearchOutcome) => {
             clearTimeout(timeout);
+            cancelRef.current = null;
+            setCallsRunning(false);
             setOutcome(searchOutcome ?? null);
             const id = reservationRef.current; reservationRef.current = null;
             if (id) void credits.release(id).then(() => setCreditNotice(uiLanguage === "th" ? "คืนเครดิตทดลองแล้ว · ไม่คิดเงินจากราคาจำลอง" : uiLanguage === "yue" ? "已退回示範額度 · 唔會按模擬報價收費" : "Demo credit returned · mock quotes are never billed")).catch(() => setCreditNotice(uiLanguage === "th" ? "เครดิตที่สำรองไว้จะคืนอัตโนมัติภายใน 10 นาที" : uiLanguage === "yue" ? "預留額度會喺十分鐘內自動退回" : "Reserved credit will be released after 10 minutes"));
@@ -81,26 +97,63 @@ function CallyPage() {
     const stopCalling = (next: Screen) => {
         cancelRef.current?.();
         cancelRef.current = null;
+        setCallsRunning(false);
         setScreen(next);
     };
+    // What the phone's Back button does on each screen: the same as the on-screen back/close.
+    const goBack = () => {
+        if (areaSheet) { setAreaSheet(false); return; }
+        if (screen === "details") setScreen("options");
+        else if (screen === "options" || screen === "calling") stopCalling("speak");
+        else {
+            if (screen === "confirm") setSpeakDraft(transcript);
+            setScreen("speak");
+        }
+    };
+    const goBackRef = useRef(goBack);
+    goBackRef.current = goBack;
+    // Keep one history entry while away from the home screen, so Back steps back inside the
+    // app instead of leaving it.
+    const trappedRef = useRef(false);
+    const ignorePopRef = useRef(false);
+    useEffect(() => {
+        if (screen !== "speak" && !trappedRef.current) {
+            history.pushState({ cally: true }, "");
+            trappedRef.current = true;
+        }
+        else if (screen === "speak" && trappedRef.current) {
+            trappedRef.current = false;
+            ignorePopRef.current = true;
+            history.back();
+        }
+    }, [screen]);
+    useEffect(() => {
+        const onPop = () => {
+            if (ignorePopRef.current) { ignorePopRef.current = false; return; }
+            trappedRef.current = false;
+            goBackRef.current();
+        };
+        window.addEventListener("popstate", onPop);
+        return () => window.removeEventListener("popstate", onPop);
+    }, []);
     return (<main className="app">
       <Settings />
-      {creditNotice && screen === "options" && <div className="credit-result-note" role="status">{creditNotice}</div>}
-      {screen === "speak" && <Speak onTranscript={submitTranscript} error={error} homeArea={homeArea} onHomeArea={setHomeArea}/>}
-      {screen === "confirm" && summary && (<Confirm transcript={transcript} summary={summary} onBack={() => setScreen("speak")} onYes={() => { void beginCalling(); }} starting={starting}/>)}
-      {screen === "calling" && (<Calling results={results} onShow={() => stopCalling("options")} onCancel={() => stopCalling("speak")}/>)}
-      {screen === "options" && (<Options results={results} outcome={outcome} onClose={() => setScreen("speak")} onRetry={() => setScreen("confirm")} onWiden={() => setRetrySheet(true)} onOpen={(s) => {
+      {creditNotice && screen === "options" && !callsRunning && <div className="credit-result-note" role="status">{creditNotice}</div>}
+      {screen === "speak" && <Speak onTranscript={submitTranscript} error={error} homeArea={homeArea} areaChosen={areaChosen} onHomeArea={setHomeArea} draft={speakDraft} onShowLast={results.length ? () => setScreen("options") : undefined}/>}
+      {screen === "confirm" && summary && (<Confirm transcript={transcript} summary={summary} areaChosen={areaChosen} onChange={setSummary} onEditArea={() => setAreaSheet(true)} onBack={() => { setSpeakDraft(transcript); setScreen("speak"); }} onYes={() => { void beginCalling(); }} starting={starting}/>)}
+      {screen === "calling" && (<Calling results={results} onShow={() => setScreen("options")} onCancel={() => stopCalling("speak")}/>)}
+      {screen === "options" && (<Options results={results} outcome={outcome} running={callsRunning} onClose={() => stopCalling("speak")} onRetry={() => setScreen("confirm")} onWiden={() => setAreaSheet(true)} onOpen={(s) => {
                 setSelected(s);
                 setScreen("details");
             }}/>)}
-      {retrySheet && (<AreaSheet current={homeArea} onPick={(area) => {
+      {areaSheet && (<AreaSheet current={homeArea} onPick={(area) => {
                 setHomeArea(area);
                 setSummary((s) => (s ? { ...s, near: area } : s));
-                setRetrySheet(false);
+                setAreaSheet(false);
                 setScreen("confirm");
             }} onClose={() => {
                 // The radius slider saves as it moves, so closing still searches again with it.
-                setRetrySheet(false);
+                setAreaSheet(false);
                 setScreen("confirm");
             }}/>)}
       {screen === "details" && selected && (<Details shop={selected} onBack={() => setScreen("options")}/>)}
@@ -121,17 +174,21 @@ type SpeechRec = {
     start: () => void;
     stop: () => void;
 };
-function Speak({ onTranscript, error, homeArea, onHomeArea, }: {
+function Speak({ onTranscript, error, homeArea, areaChosen, onHomeArea, draft, onShowLast, }: {
     onTranscript: (t: string) => void;
     error: string | null;
     homeArea: string;
+    areaChosen: boolean;
     onHomeArea: (area: string) => void;
+    /** The last request, kept so "say it again" can edit it instead of starting over. */
+    draft: string;
+    onShowLast?: () => void;
 }) {
     const { t, uiLanguage } = usePreferences();
     const [sheet, setSheet] = useState(false);
     const [listening, setListening] = useState(false);
-    const [typing, setTyping] = useState(false);
-    const [text, setText] = useState("");
+    const [typing, setTyping] = useState(!!draft);
+    const [text, setText] = useState(draft);
     // UI-only states: reading the request after speech, or nothing was heard.
     const [thinking, setThinking] = useState(false);
     const [missed, setMissed] = useState(false);
@@ -233,9 +290,9 @@ function Speak({ onTranscript, error, homeArea, onHomeArea, }: {
     return (<section className="screen">
       <div className="glow" style={{ top: 230, left: 45 }}/>
       <div className="topbar">
-        <button className="pill glass area" onClick={() => setSheet(true)} aria-haspopup="dialog">
-          {homeArea === DEFAULT_HOME_AREA ? <I.Home size={18}/> : <I.Pin size={18}/>}
-          <span>{t(homeLabel(homeArea))}</span>
+        <button className={`pill glass area ${areaChosen ? "" : "unset"}`} onClick={() => setSheet(true)} aria-haspopup="dialog" aria-label={areaChosen ? `${t("Searching near")} ${t(homeLabel(homeArea))}. ${t("Tap to change")}` : t("Set your area")}>
+          <I.Pin size={18}/>
+          <span>{areaChosen ? t(homeLabel(homeArea)) : t("Set area")}</span>
         </button>
         <span className="brand">CALLY</span>
       </div>
@@ -246,7 +303,7 @@ function Speak({ onTranscript, error, homeArea, onHomeArea, }: {
 
       <div className="speak-body">
         <h1>{t("What needs fixing?")}</h1>
-        <p className="sub">{t("Just say it. I'll find the cheapest shop.")}</p>
+        <p className="sub">{t("Tell me what's broken. I'll ask nearby repair shops for a price and show you the cheapest.")}</p>
         <div className={`mic-ring glass ${listening ? "live" : ""} ${thinking ? "busy" : ""}`}>
           <button className="mic-btn" disabled={thinking} aria-label={t("Hold to talk")} aria-pressed={listening}
             onPointerDown={(e) => {
@@ -274,6 +331,7 @@ function Speak({ onTranscript, error, homeArea, onHomeArea, }: {
         </div>
         {error && <p role="alert" style={{ color: "var(--warn, #b3261e)", fontSize: 14 }}>{error}</p>}
         {!listening && !thinking && (<p className="example">{t("Try:")}<i>&ldquo;{t(EXAMPLE_REQUEST)}&rdquo;</i></p>)}
+        {!listening && !thinking && onShowLast && (<button className="see-call" onClick={onShowLast}>{t("See your last results")}</button>)}
       </div>
 
       {typing ? (<form className="type-box" onSubmit={(e) => {
@@ -282,7 +340,7 @@ function Speak({ onTranscript, error, homeArea, onHomeArea, }: {
                     submit(text.trim());
             }}>
           <input autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder={t("What needs fixing?")} aria-label={t("Describe what needs fixing")}/>
-          <button className="btn btn-primary sm" type="submit">{t("Go")}</button>
+          <button className="btn btn-primary sm" type="submit" disabled={!text.trim() || thinking}>{t("Go")}</button>
         </form>) : (<button className="btn btn-secondary" onClick={() => setTyping(true)}>
           <I.Keyboard size={20}/>{t("Type instead")}</button>)}
     </section>);
@@ -322,6 +380,11 @@ function AreaSheet({ current, onPick, onClose, }: {
     const [locating, setLocating] = useState(false);
     const [saving, setSaving] = useState(false);
     const [note, setNote] = useState<string | null>(null);
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [onClose]);
     const useLocation = () => {
         if (!navigator.geolocation)
             return setNote(t("This browser can't share your location."));
@@ -353,7 +416,7 @@ function AreaSheet({ current, onPick, onClose, }: {
     return (<div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" role="dialog" aria-label={t("Choose your area")} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-head">
-          <div className="area-heading"><b>{t("Where should I look?")}</b><button type="button" className="map-opener" aria-label={t("Choose on map")} aria-expanded={showMap} aria-controls="location-map-picker" onClick={() => setShowMap(value => !value)}><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2zM9 3v16M15 5v16"/></svg></button></div>
+          <div className="area-heading"><b>{t("Where should I look?")}</b><small>{t("Now searching near")} {t(homeLabel(current))}</small></div>
           <button className="round" onClick={onClose} aria-label={t("Close")}><I.Close size={20}/></button>
         </div>
         <div className="radius-picker">
@@ -365,7 +428,10 @@ function AreaSheet({ current, onPick, onClose, }: {
         <button className="btn btn-secondary" onClick={useLocation} disabled={locating}>
           <I.Pin size={20}/>{locating ? t("Finding you\u2026") : t("Use my current location")}
         </button>
-        {showMap && <div id="location-map-picker"><LocationMap onConfirm={setMapPoint} saving={saving} radiusKm={radiusKm} /></div>}
+        <button className="btn btn-secondary" aria-expanded={showMap} aria-controls="location-map-picker" onClick={() => setShowMap(value => !value)}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2zM9 3v16M15 5v16"/></svg>{showMap ? t("Hide map") : t("Choose on map")}
+        </button>
+        {showMap && <div id="location-map-picker"><LocationMap onConfirm={setMapPoint} saving={saving} radiusKm={radiusKm} area={current} /></div>}
         {note && <p role="alert" className="sheet-note">{note}</p>}
         <form className="type-box" onSubmit={(e) => {
             e.preventDefault();
@@ -379,13 +445,36 @@ function AreaSheet({ current, onPick, onClose, }: {
     </div>);
 }
 /* ---------- 2 · Confirm ---------- */
-function Confirm({ transcript, summary, onBack, onYes, starting, }: {
+type EditableField = "fix" | "device" | "when";
+function Confirm({ transcript, summary, areaChosen, onChange, onEditArea, onBack, onYes, starting, }: {
     transcript: string;
     summary: RequestSummary;
+    areaChosen: boolean;
+    onChange: (summary: RequestSummary) => void;
+    onEditArea: () => void;
     onBack: () => void;
     onYes: () => void;
     starting: boolean;
 }) {
+    const [editing, setEditing] = useState<EditableField | null>(null);
+    const [draft, setDraft] = useState("");
+    // Enter and Escape both remove the input, which then blurs; only the first action counts.
+    const doneRef = useRef(false);
+    const startEdit = (field: EditableField) => {
+        doneRef.current = false;
+        setEditing(field);
+        setDraft(summary[field] === NOT_MENTIONED ? "" : summary[field]);
+    };
+    const commitEdit = () => {
+        if (!editing || doneRef.current) return;
+        doneRef.current = true;
+        onChange({ ...summary, [editing]: draft.trim().slice(0, 120) || NOT_MENTIONED });
+        setEditing(null);
+    };
+    const cancelEdit = () => {
+        doneRef.current = true;
+        setEditing(null);
+    };
     const { t, uiLanguage } = usePreferences();
     const listen = () => {
         if (!("speechSynthesis" in window))
@@ -399,15 +488,13 @@ function Confirm({ transcript, summary, onBack, onYes, starting, }: {
     useEffect(() => () => window.speechSynthesis?.cancel(), []);
     const fixMissing = summary.fix === NOT_MENTIONED;
     const deviceMissing = summary.device === NOT_MENTIONED;
-    const rows: [
-        string,
-        string
-    ][] = [
-        [t("Fix"), summary.fix],
-        [t("Device"), summary.device],
-        [t("When"), summary.when],
-        [t("Near"), summary.near],
+    const rows: [string, keyof RequestSummary][] = [
+        ["Fix", "fix"],
+        ["Device", "device"],
+        ["When", "when"],
+        ["Near", "near"],
     ];
+    const placeholder: Record<EditableField, string> = { fix: t("e.g. Cracked screen"), device: t("e.g. iPhone 13"), when: t("e.g. Today") };
     return (<section className="screen">
       <div className="glow" style={{ top: -80, right: -90 }}/>
       <div className="topbar" style={{ justifyContent: "flex-start" }}>
@@ -425,11 +512,19 @@ function Confirm({ transcript, summary, onBack, onYes, starting, }: {
           <span className="eyebrow" style={{ color: "var(--accent)" }}>{t("I'LL ASK NEARBY SHOPS")}</span>
           <button className="listen" onClick={listen}><I.Speaker size={16}/>{t("Listen")}</button>
         </div>
-        {rows.map(([k, v]) => (<div className="row" key={k}><span>{t(k)}</span><b>{t(v)}</b></div>))}
+        {rows.map(([label, key]) => key !== "near" && editing === key ? (<form className="row row-editing" key={key} onSubmit={(e) => { e.preventDefault(); commitEdit(); }}>
+            <label htmlFor={`edit-${key}`}>{t(label)}</label>
+            <input id={`edit-${key}`} autoFocus value={draft} placeholder={placeholder[key]} onChange={(e) => setDraft(e.target.value)} onBlur={commitEdit} onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); cancelEdit(); } }}/>
+          </form>) : (<button type="button" className={`row row-edit ${summary[key] === NOT_MENTIONED ? "missing" : ""}`} key={key} onClick={() => (key === "near" ? onEditArea() : startEdit(key))} aria-label={`${t(label)}: ${t(summary[key])}. ${t("Tap to change")}`}>
+            <span>{t(label)}</span>
+            <b>{t(summary[key])}<svg className="edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></b>
+          </button>))}
+        <p className="edit-hint">{t("Tap any line to change it.")}</p>
       </div>
 
-      {fixMissing && <p role="alert" className="warn-note">{t("I didn't catch what needs fixing. Say it again?")}</p>}
-      {!fixMissing && deviceMissing && (<p className="warn-note">{t("Shops may need the model for a price. Continue anyway?")}</p>)}
+      {fixMissing && <p role="alert" className="warn-note">{t("I didn't catch what needs fixing. Tap Fix to type it, or say it again.")}</p>}
+      {!fixMissing && deviceMissing && (<p className="warn-note">{t("Shops may need the model to give a price. Tap Device to add it, or continue anyway.")}</p>)}
+      {!areaChosen && summary.near === DEFAULT_HOME_AREA && (<p className="warn-note">{t("Searching near Asok, Bangkok (the default area). Tap Near to change it.")}</p>)}
 
       <div className="spacer"/>
       <p className="demo-search-note">{uiLanguage === "th" ? "สำรอง 1 เครดิตทดลอง แล้วคืนให้เมื่อจบ · ไม่มีการเก็บเงินจริง" : uiLanguage === "yue" ? "預留 1 個示範額度，完成後退回 · 唔收真錢" : "Reserves 1 demo credit, returned when finished · no real charge"}</p>
@@ -470,7 +565,7 @@ function Calling({ results, onShow, onCancel, }: {
 
       <div className="spacer"/>
       <div className="stack">
-        <button className="btn btn-glass glass" onClick={onShow}>{t("Show results")}</button>
+        <button className="btn btn-glass glass" onClick={onShow}>{t("See prices so far")}</button>
         <button className="btn-text" onClick={onCancel}>{t("Cancel")}</button>
       </div>
     </section>);
@@ -487,6 +582,11 @@ function NoShops({ outcome, onWiden, onRetry }: {
           <p className="sub" role="alert">{t("Couldn't load shop listings. Try again in a moment.")}</p>
           <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={onRetry}>{t("Try again")}</button>
         </>);
+    if (outcome?.empty === "area_unclear")
+        return (<>
+          <p className="sub" role="alert">{t("I couldn't find that area. Choose it on the map, or type a more specific place.")}</p>
+          <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={onWiden}><I.Pin size={20}/>{t("Change area")}</button>
+        </>);
     if (outcome?.empty === "out_of_range") {
         const r = outcome.radiusKm;
         const atMax = r >= 20;
@@ -502,30 +602,38 @@ function NoShops({ outcome, onWiden, onRetry }: {
     }
     return <p className="sub">{t("No matching shop listings were found. Try another area.")}</p>;
 }
-function Options({ results, outcome, onClose, onOpen, onWiden, onRetry, }: {
+function Options({ results, outcome, running, onClose, onOpen, onWiden, onRetry, }: {
     results: ShopResult[];
     outcome: SearchOutcome | null;
+    running: boolean;
     onClose: () => void;
     onOpen: (s: ShopResult) => void;
     onWiden: () => void;
     onRetry: () => void;
 }) {
     const { t, uiLanguage } = usePreferences();
-    const { answered, leftOut } = rankResults(results);
+    const { answered, pending, leftOut } = rankResults(results);
     const [top, ...rest] = answered;
+    const waiting = running && (pending > 0 || results.length === 0);
+    const answeredLine = uiLanguage === "yue" ? `${results.length} 間舖之中 ${answered.length} 間有報價` : uiLanguage === "th" ? `ได้ราคาจาก ${answered.length} จาก ${results.length} ร้าน` : `${answered.length} of ${results.length} ${results.length === 1 ? "shop" : "shops"} gave a price`;
+    const waitingLine = uiLanguage === "yue" ? `仲等緊 ${pending} 間舖回覆…` : uiLanguage === "th" ? `กำลังรอคำตอบจากอีก ${pending} ร้าน…` : `Still waiting on ${pending} ${pending === 1 ? "shop" : "shops"}…`;
     return (<section className="screen">
       <div className="glow" style={{ top: 120, left: 40 }}/>
       <div className="topbar">
-        <button className="round glass" onClick={onClose} aria-label={t("Close")}><I.Close size={22}/></button>
-        <span style={{ fontSize: 14, color: "var(--muted)" }}>
-          {uiLanguage === "yue" ? `${answered.length} 間舖有回覆` : uiLanguage === "th" ? `มีร้านตอบกลับ ${answered.length} ร้าน` : `${answered.length} ${answered.length === 1 ? "shop" : "shops"} answered`}
-        </span>
+        <button className="round glass" onClick={onClose} aria-label={running ? t("Stop and close") : t("Close")}><I.Close size={22}/></button>
       </div>
       <div className="scroll">
       <h1 style={{ marginTop: 18 }}>{t("Cheapest first")}</h1>
+      {results.length > 0 && <p className="results-count">{answeredLine}{waiting && pending > 0 && <span className="live-dot">{waitingLine}</span>}</p>}
       {results.some(r => r.simulated) && <p className="simulation-notice">{t("Demo only: real shop listings, simulated conversations and prices. No shops are called.")} <a href="https://maps.google.com" target="_blank" rel="noreferrer">Google Maps</a></p>}
 
-      {!top ? (results.length === 0 ? <NoShops outcome={outcome} onWiden={onWiden} onRetry={onRetry}/> : <p className="sub">{t("No shop picked up yet. Try again in a moment.")}</p>) : (<>
+      {!top ? (waiting
+            ? <p className="sub" aria-live="polite">{t("Shops are still answering. Prices will appear here as they come in.")}</p>
+            : results.length === 0 ? <NoShops outcome={outcome} onWiden={onWiden} onRetry={onRetry}/>
+            : (<>
+              <p className="sub">{t("None of the shops gave a price this time.")}</p>
+              <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={onRetry}>{t("Try again")}</button>
+            </>)) : (<>
           <div className="top-pick glass">
             <div className="pick-head">
               <button onClick={() => onOpen(top)} style={{ textAlign: "left" }}>
@@ -535,7 +643,7 @@ function Options({ results, outcome, onClose, onOpen, onWiden, onRetry, }: {
             </div>
             <div className="stats">
               <div className="stat"><b className="green">{formatPrice(top.price_thb, top.price_is_estimate, uiLanguage)}</b><small>{t("Price")}</small></div>
-              <div className="stat"><b>{top.distance_km ?? "—"} {uiLanguage === "th" ? "กม." : uiLanguage === "yue" ? "公里" : "km"}</b><small>{t("From home")}</small></div>
+              <div className="stat"><b>{top.distance_km ?? "—"} {uiLanguage === "th" ? "กม." : uiLanguage === "yue" ? "公里" : "km"}</b><small>{t("Away")}</small></div>
               <div className="stat"><b>{t(formatReady(top).text)}</b><small>{top.available_today ? t("Ready today") : t("Ready")}</small></div>
             </div>
             <CallShopButton shop={top} small/>
@@ -580,11 +688,8 @@ function Details({ shop, onBack, }: {
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const ready = formatReady(shop);
     const togglePlay = () => {
-        if (!shop.recording_url) {
-            // Mock data has no recording; just flip the control so the UI can be reviewed.
-            setPlaying((p) => !p);
+        if (!shop.recording_url)
             return;
-        }
         if (!audioRef.current) {
             audioRef.current = new Audio(shop.recording_url);
             audioRef.current.onended = () => setPlaying(false);
@@ -609,7 +714,7 @@ function Details({ shop, onBack, }: {
       <div className="scroll">
       <div className="chips">
         <span className="chip g">{formatPrice(shop.price_thb, shop.price_is_estimate, uiLanguage)}</span>
-        <span className="chip">{shop.distance_km ?? "—"} {uiLanguage === "th" ? "กม. จากบ้าน" : uiLanguage === "yue" ? "公里，離屋企" : "km from home"}</span>
+        <span className="chip">{shop.distance_km ?? "—"} {uiLanguage === "th" ? "กม. จากจุดที่ค้นหา" : uiLanguage === "yue" ? "公里遠" : "km away"}</span>
         <span className={`chip ${ready.late ? "w" : ""}`}>
           {shop.available_today ? `${t("Ready today")} ${t(ready.text)}` : `${t("Ready")} ${t(ready.text)}`}
         </span>
@@ -622,12 +727,13 @@ function Details({ shop, onBack, }: {
       </div>
       </div>
 
-      <div className="bar glass">
-        <button className="play" onClick={togglePlay} aria-label={playing ? t("Pause recording") : t("Play recording")}>
+      {/* Only offer playback when there is a real recording to play. */}
+      {(shop.recording_url || !shop.simulated || shop.source_url) && (<div className="bar glass">
+        {shop.recording_url && (<button className="play" onClick={togglePlay} aria-label={playing ? t("Pause recording") : t("Play recording")}>
           {playing ? <I.Pause size={22}/> : <I.Play size={22}/>}
-        </button>
+        </button>)}
         <CallShopButton shop={shop} small/>
-      </div>
+      </div>)}
     </section>);
 }
 export default function Page() { return <PreferencesProvider><SearchCreditsProvider><CallyPage /></SearchCreditsProvider></PreferencesProvider>; }

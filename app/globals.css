@@ -391,3 +391,27 @@ a.btn { text-decoration: none; }
 .radius-scale { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); }
 .radius-picker small { display: block; margin-top: 8px; font-size: 10px; color: var(--muted); line-height: 1.4; }
 
+/* Usability pass: area prompt, credits label, editable summary, live results. */
+.pill.area.unset { color: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light), 0 12px 32px rgba(17, 19, 24, 0.12); }
+.credits-trigger small { font-size: 11px; font-weight: 600; color: var(--muted); }
+.brand { margin-right: 124px; }
+.pill.area { max-width: calc(100% - 200px); }
+.area-heading { flex-direction: column; align-items: flex-start; gap: 2px; }
+.area-heading small { font-size: 12px; color: var(--muted); font-weight: 500; }
+.row-edit { width: 100%; align-items: center; gap: 12px; text-align: left; border-radius: 10px; }
+.row-edit b { display: inline-flex; align-items: center; gap: 6px; text-align: right; }
+.row-edit .edit-icon { color: var(--accent); opacity: .7; flex: none; }
+.row-edit.missing b { color: var(--warn); }
+.row-edit:hover b, .row-edit:focus-visible b { color: var(--accent); }
+.row-editing { align-items: center; gap: 12px; }
+.row-editing label { color: var(--muted); flex: none; }
+.row-editing input { flex: 1; min-width: 0; height: 36px; padding: 0 12px; border-radius: 10px; border: 1.5px solid var(--accent); background: var(--surface); text-align: right; font-weight: 700; }
+.edit-hint { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+.results-count { margin: 6px 0 0; font-size: 14px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.live-dot { color: var(--info); font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+.live-dot::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: live-blink 1.2s ease-in-out infinite; }
+@keyframes live-blink { 50% { opacity: .25; } }
+.type-box .btn:disabled { opacity: .45; box-shadow: none; }
+.location-map-panel > .btn { height: 46px; font-size: 15px; }
+@media (prefers-reduced-motion: reduce) { .live-dot::before { animation: none; } }
+

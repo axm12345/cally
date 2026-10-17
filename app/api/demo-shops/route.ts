@@ -17,8 +17,10 @@ export async function POST(req: Request) {
     let lat = body.coordinates?.lat, lon = body.coordinates?.lon;
     let hasPoint = typeof lat === "number" && typeof lon === "number" && Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 85 && Math.abs(lon) <= 180;
     if (!hasPoint) {
-      const geo = await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=" + encodeURIComponent(near), { headers: { "user-agent": "Cally location picker (https://cally-v1-2.vercel.app)" }, signal: AbortSignal.timeout(6000) });
-      if (geo.ok) { const locations = await geo.json(); lat = Number(locations[0]?.lat); lon = Number(locations[0]?.lon); hasPoint = Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 85 && Math.abs(lon) <= 180; }
+      // Cally only covers Thailand; without this, an area like "Siam" can resolve to Italy.
+      const geo = await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=th&q=" + encodeURIComponent(near), { headers: { "user-agent": "Cally location picker (https://cally-v1-2.vercel.app)" }, signal: AbortSignal.timeout(6000) });
+      // place_rank < 13 is a country or province (e.g. "Siam" = Thailand), too broad for a radius search.
+      if (geo.ok) { const locations = await geo.json(); lat = Number(locations[0]?.lat); lon = Number(locations[0]?.lon); hasPoint = Number(locations[0]?.place_rank) >= 13 && Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 85 && Math.abs(lon) <= 180; }
       if (!hasPoint) return NextResponse.json({ error: "Choose a point on the map to apply your search radius." }, { status: 400 });
     }
     // Text Search only restricts to a rectangle, so ask for the box around the radius

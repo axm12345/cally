@@ -32,8 +32,7 @@ export type RequestSummary = { fix: string; device: string; when: string; near: 
 export const NOT_MENTIONED = "Not mentioned";
 export const DEFAULT_HOME_AREA = "Asok";
 export const CURRENT_LOCATION_AREA = "my current location";
-export const homeLabel = (area: string) =>
-  area === DEFAULT_HOME_AREA ? `Home · ${area}` : area === CURRENT_LOCATION_AREA ? "Current location" : area;
+export const homeLabel = (area: string) => (area === CURRENT_LOCATION_AREA ? "Current location" : area);
 export const EXAMPLE_REQUEST = "My phone screen is cracked, I need it fixed today";
 export const OPENING_LINE = "Hi, I'm a booking assistant calling for a customer.";
 
@@ -159,7 +158,7 @@ export async function getRequestSummary(transcript: string): Promise<RequestSumm
 const POLL_MS = 3000;
 
 /** Why a search ended with no shops, so the UI can say what to change. */
-export type SearchOutcome = { radiusKm: number; empty?: "out_of_range" | "lookup_failed" };
+export type SearchOutcome = { radiusKm: number; empty?: "out_of_range" | "lookup_failed" | "area_unclear" };
 
 /**
  * Start calling shops at once. `onUpdate` receives the full current list every
@@ -305,6 +304,8 @@ function startMockCalls(
       try { const saved = Number(localStorage.getItem("cally-radius-km")); if (Number.isInteger(saved) && saved >= 1 && saved <= 20) radiusKm = saved; } catch {}
       try { const point = JSON.parse(localStorage.getItem("cally-map-point") || "null"); if (point?.label === request.near) coordinates = { lat: point.lat, lon: point.lon }; } catch {}
       const res = await fetch("/api/demo-shops", { method: "POST", headers: { "content-type": "application/json" }, signal: controller.signal, body: JSON.stringify({ ...request, coordinates, radiusKm }) });
+      // 400: the area couldn't be placed on the map (too vague or unknown), not a server fault.
+      if (res.status === 400) { if (!cancelled) { onUpdate([]); onFinish([], { radiusKm, empty: "area_unclear" }); } return; }
       if (!res.ok) throw new Error("Shop lookup failed");
       const data = await res.json();
       if (cancelled) return;
@@ -343,12 +344,13 @@ function startMockCalls(
   return () => { cancelled = true; controller.abort(); timers.forEach(clearTimeout); };
 }
 
-/** Answered shops, cheapest first, plus how many were left out. */
+/** Answered shops, cheapest first, how many are still on the line, and how many ended without a price. */
 export function rankResults(results: ShopResult[]) {
   const answered = results
     .filter((r) => r.status === "done" && r.price_thb !== null)
     .sort((a, b) => a.price_thb! - b.price_thb!);
-  return { answered, leftOut: results.length - answered.length };
+  const pending = results.filter((r) => r.status === "ringing" || r.status === "talking").length;
+  return { answered, pending, leftOut: results.length - answered.length - pending };
 }
 
 /* ---------- display helpers ---------- */
@@ -360,6 +362,6 @@ export function formatReady(r: ShopResult): { text: string; late: boolean } {
   if (!r.ready_time) return { text: "-", late: true };
   if (!r.available_today) return { text: "Tomorrow", late: true };
   // Read the clock time straight from the ISO string so it shows the shop's local time.
-  const [h, m] = r.ready_time.slice(11, 16).split(":").map(Number);
-  return { text: `${h % 12 || 12}:${String(m).padStart(2, "0")}`, late: false };
+  // 24-hour time, so "4:30" can't be read as morning or afternoon.
+  return { text: r.ready_time.slice(11, 16), late: false };
 }
