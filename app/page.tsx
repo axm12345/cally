@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { DEFAULT_HOME_AREA, EXAMPLE_REQUEST, NOT_MENTIONED, homeLabel, formatPrice, formatReady, getRequestSummary, rankResults, startCalls, type CallStatus, type RequestSummary, type ShopResult, } from "@/lib/shops";
+import { DEFAULT_HOME_AREA, EXAMPLE_REQUEST, NOT_MENTIONED, homeLabel, formatPrice, formatReady, getRequestSummary, rankResults, startCalls, type CallStatus, type RequestSummary, type SearchOutcome, type ShopResult, } from "@/lib/shops";
 import { PreferencesProvider, Settings, usePreferences } from "@/components/preferences";
 import dynamic from "next/dynamic";
 import type { MapPoint } from "@/components/location-map";
@@ -30,6 +30,9 @@ function CallyPage() {
     const [results, setResults] = useState<ShopResult[]>([]);
     const [selected, setSelected] = useState<ShopResult | null>(null);
     const [homeArea, setHomeArea] = useState(DEFAULT_HOME_AREA);
+    const [outcome, setOutcome] = useState<SearchOutcome | null>(null);
+    // Area sheet opened from the results screen to widen the search for the same request.
+    const [retrySheet, setRetrySheet] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const cancelRef = useRef<(() => void) | null>(null);
     useEffect(() => () => cancelRef.current?.(), []);
@@ -56,10 +59,12 @@ function CallyPage() {
         if (!reservation) return;
         reservationRef.current = reservation;
         setCreditNotice("");
+        setOutcome(null);
         setScreen("calling");
         let timeout: ReturnType<typeof setTimeout>;
-        const finish = () => {
+        const finish = (_results?: ShopResult[], searchOutcome?: SearchOutcome) => {
             clearTimeout(timeout);
+            setOutcome(searchOutcome ?? null);
             const id = reservationRef.current; reservationRef.current = null;
             if (id) void credits.release(id).then(() => setCreditNotice(uiLanguage === "th" ? "คืนเครดิตทดลองแล้ว · ไม่คิดเงินจากราคาจำลอง" : uiLanguage === "yue" ? "已退回示範額度 · 唔會按模擬報價收費" : "Demo credit returned · mock quotes are never billed")).catch(() => setCreditNotice(uiLanguage === "th" ? "เครดิตที่สำรองไว้จะคืนอัตโนมัติภายใน 10 นาที" : uiLanguage === "yue" ? "預留額度會喺十分鐘內自動退回" : "Reserved credit will be released after 10 minutes"));
             setScreen((s) => (s === "calling" ? "options" : s));
@@ -84,9 +89,19 @@ function CallyPage() {
       {screen === "speak" && <Speak onTranscript={submitTranscript} error={error} homeArea={homeArea} onHomeArea={setHomeArea}/>}
       {screen === "confirm" && summary && (<Confirm transcript={transcript} summary={summary} onBack={() => setScreen("speak")} onYes={() => { void beginCalling(); }} starting={starting}/>)}
       {screen === "calling" && (<Calling results={results} onShow={() => stopCalling("options")} onCancel={() => stopCalling("speak")}/>)}
-      {screen === "options" && (<Options results={results} onClose={() => setScreen("speak")} onOpen={(s) => {
+      {screen === "options" && (<Options results={results} outcome={outcome} onClose={() => setScreen("speak")} onRetry={() => setScreen("confirm")} onWiden={() => setRetrySheet(true)} onOpen={(s) => {
                 setSelected(s);
                 setScreen("details");
+            }}/>)}
+      {retrySheet && (<AreaSheet current={homeArea} onPick={(area) => {
+                setHomeArea(area);
+                setSummary((s) => (s ? { ...s, near: area } : s));
+                setRetrySheet(false);
+                setScreen("confirm");
+            }} onClose={() => {
+                // The radius slider saves as it moves, so closing still searches again with it.
+                setRetrySheet(false);
+                setScreen("confirm");
             }}/>)}
       {screen === "details" && selected && (<Details shop={selected} onBack={() => setScreen("options")}/>)}
     </main>);
@@ -461,10 +476,39 @@ function Calling({ results, onShow, onCancel, }: {
     </section>);
 }
 /* ---------- 4 · Options ---------- */
-function Options({ results, onClose, onOpen, }: {
+function NoShops({ outcome, onWiden, onRetry }: {
+    outcome: SearchOutcome | null;
+    onWiden: () => void;
+    onRetry: () => void;
+}) {
+    const { t, uiLanguage } = usePreferences();
+    if (outcome?.empty === "lookup_failed")
+        return (<>
+          <p className="sub" role="alert">{t("Couldn't load shop listings. Try again in a moment.")}</p>
+          <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={onRetry}>{t("Try again")}</button>
+        </>);
+    if (outcome?.empty === "out_of_range") {
+        const r = outcome.radiusKm;
+        const atMax = r >= 20;
+        const message = uiLanguage === "th"
+            ? (atMax ? `ไม่พบร้านในระยะ ${r} กม. ลองเลือกพื้นที่อื่น` : `ไม่พบร้านในระยะ ${r} กม. ลองเพิ่มรัศมีการค้นหาแล้วลองอีกครั้ง`)
+            : uiLanguage === "yue"
+                ? (atMax ? `${r} 公里內搵唔到舖頭，試吓揀其他地區。` : `${r} 公里內搵唔到舖頭，試吓擴大搜尋範圍再試。`)
+                : (atMax ? `No shops found within ${r} km. Try a different area.` : `No shops found within ${r} km. Increase your search radius and try again.`);
+        return (<>
+          <p className="sub" role="alert">{message}</p>
+          <button className="btn btn-primary" style={{ marginTop: 18 }} onClick={onWiden}><I.Pin size={20}/>{atMax ? t("Change area") : t("Increase search radius")}</button>
+        </>);
+    }
+    return <p className="sub">{t("No matching shop listings were found. Try another area.")}</p>;
+}
+function Options({ results, outcome, onClose, onOpen, onWiden, onRetry, }: {
     results: ShopResult[];
+    outcome: SearchOutcome | null;
     onClose: () => void;
     onOpen: (s: ShopResult) => void;
+    onWiden: () => void;
+    onRetry: () => void;
 }) {
     const { t, uiLanguage } = usePreferences();
     const { answered, leftOut } = rankResults(results);
@@ -481,7 +525,7 @@ function Options({ results, onClose, onOpen, }: {
       <h1 style={{ marginTop: 18 }}>{t("Cheapest first")}</h1>
       {results.some(r => r.simulated) && <p className="simulation-notice">{t("Demo only: real shop listings, simulated conversations and prices. No shops are called.")} <a href="https://maps.google.com" target="_blank" rel="noreferrer">Google Maps</a></p>}
 
-      {!top ? (<p className="sub">{results.length === 0 ? t("No matching shop listings were found. Try another area.") : t("No shop picked up yet. Try again in a moment.")}</p>) : (<>
+      {!top ? (results.length === 0 ? <NoShops outcome={outcome} onWiden={onWiden} onRetry={onRetry}/> : <p className="sub">{t("No shop picked up yet. Try again in a moment.")}</p>) : (<>
           <div className="top-pick glass">
             <div className="pick-head">
               <button onClick={() => onOpen(top)} style={{ textAlign: "left" }}>

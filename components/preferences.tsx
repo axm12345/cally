@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 
 export const thai: Record<string, string> = {
  "Search radius": "รัศมีการค้นหา", "Straight-line distance from the selected location.": "ระยะทางเส้นตรงจากตำแหน่งที่เลือก",
+ "Increase search radius": "เพิ่มรัศมีการค้นหา", "Change area": "เปลี่ยนพื้นที่", "Try again": "ลองอีกครั้ง", "Couldn't load shop listings. Try again in a moment.": "โหลดรายชื่อร้านไม่สำเร็จ กรุณาลองใหม่อีกครั้ง",
  "Simulated shop conversations": "การสนทนาร้านค้าแบบจำลอง", "Demo only: real shop listings, simulated conversations and prices. No shops are called.": "การสาธิตเท่านั้น: ชื่อร้านจริง แต่การสนทนาและราคาเป็นตัวอย่าง ไม่มีการโทรหาร้าน", "Finding shops for your selected area…": "กำลังหาร้านในพื้นที่ที่เลือก…", "No matching shop listings were found. Try another area.": "ไม่พบร้านที่ตรงกับการค้นหา ลองพื้นที่อื่น", "View shop listing": "ดูข้อมูลร้าน",
   "Choose on map": "เลือกบนแผนที่", "Choose a point on the map": "เลือกจุดบนแผนที่", "Tap the map or drag the pin to choose a location.": "แตะแผนที่หรือลากหมุดเพื่อเลือกตำแหน่ง", "Map unavailable. You can still type an area below.": "แผนที่ไม่พร้อมใช้งาน ยังสามารถพิมพ์พื้นที่ด้านล่างได้", "Pin map center": "ปักหมุดกลางแผนที่", "Use this location": "ใช้ตำแหน่งนี้", "Could not name this point. Try a nearby street or type an area.": "ไม่พบชื่อสถานที่ ลองถนนใกล้เคียงหรือพิมพ์พื้นที่",
   "Settings": "การตั้งค่า", "Close": "ปิด", "Dark mode": "โหมดมืด",
@@ -36,6 +37,7 @@ export const thai: Record<string, string> = {
 
 export const cantonese: Record<string, string> = {
  "Search radius": "搜尋範圍", "Straight-line distance from the selected location.": "由所選位置計算嘅直線距離。",
+ "Increase search radius": "擴大搜尋範圍", "Change area": "轉地區", "Try again": "再試一次", "Couldn't load shop listings. Try again in a moment.": "載入唔到舖頭資料，請等陣再試。",
  "Simulated shop conversations": "模擬舖頭對話", "Demo only: real shop listings, simulated conversations and prices. No shops are called.": "只供示範：真實舖頭資料，對話同價錢係模擬，冇打畀舖頭。", "Finding shops for your selected area…": "搵緊所選地區嘅舖頭…", "No matching shop listings were found. Try another area.": "搵唔到符合要求嘅舖頭，試吓其他地區。", "View shop listing": "睇舖頭資料",
   "Choose on map": "喺地圖揀", "Choose a point on the map": "喺地圖揀位置", "Tap the map or drag the pin to choose a location.": "撳地圖或者拖個圖釘嚟揀位置。", "Map unavailable. You can still type an area below.": "載入唔到地圖，可以喺下面輸入地區。", "Pin map center": "釘選地圖中心", "Use this location": "用呢個位置", "Could not name this point. Try a nearby street or type an area.": "搵唔到地名，試吓附近條街或者輸入地區。",
   "Settings": "設定",

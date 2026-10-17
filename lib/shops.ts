@@ -158,6 +158,9 @@ export async function getRequestSummary(transcript: string): Promise<RequestSumm
 
 const POLL_MS = 3000;
 
+/** Why a search ended with no shops, so the UI can say what to change. */
+export type SearchOutcome = { radiusKm: number; empty?: "out_of_range" | "lookup_failed" };
+
 /**
  * Start calling shops at once. `onUpdate` receives the full current list every
  * time any call changes state. `onFinish` fires when all calls have ended.
@@ -168,7 +171,7 @@ const POLL_MS = 3000;
 export function startCalls(
   request: RequestSummary,
   onUpdate: (results: ShopResult[]) => void,
-  onFinish: (results: ShopResult[]) => void,
+  onFinish: (results: ShopResult[], outcome?: SearchOutcome) => void,
   language: "en" | "th" | "yue" = "th",
 ): () => void {
   let cancelled = false;
@@ -289,23 +292,25 @@ export function startCalls(
 
 function startMockCalls(
   onUpdate: (results: ShopResult[]) => void,
-  onFinish: (results: ShopResult[]) => void,
+  onFinish: (results: ShopResult[], outcome?: SearchOutcome) => void,
   request: RequestSummary,
 ): () => void {
   let cancelled = false;
   const controller = new AbortController();
   const timers: ReturnType<typeof setTimeout>[] = [];
+  let radiusKm = 5;
   void (async () => {
     try {
       let coordinates;
-      let radiusKm = 5;
       try { const saved = Number(localStorage.getItem("cally-radius-km")); if (Number.isInteger(saved) && saved >= 1 && saved <= 20) radiusKm = saved; } catch {}
       try { const point = JSON.parse(localStorage.getItem("cally-map-point") || "null"); if (point?.label === request.near) coordinates = { lat: point.lat, lon: point.lon }; } catch {}
       const res = await fetch("/api/demo-shops", { method: "POST", headers: { "content-type": "application/json" }, signal: controller.signal, body: JSON.stringify({ ...request, coordinates, radiusKm }) });
       if (!res.ok) throw new Error("Shop lookup failed");
       const data = await res.json();
       if (cancelled) return;
-      const listings = (data.shops || []) as Pick<ShopResult, "shop_name" | "phone" | "distance_km" | "address" | "source_url" | "simulated">[];
+      // Never contact a shop outside the chosen radius, or one whose distance is unknown.
+      const listings = ((data.shops || []) as Pick<ShopResult, "shop_name" | "phone" | "distance_km" | "address" | "source_url" | "simulated">[])
+        .filter((listing) => typeof listing.distance_km === "number" && listing.distance_km <= radiusKm);
       const plans = listings.slice(0,5).map((listing, i) => {
         const sample = MOCK_SHOPS[i];
         const timing = MOCK_TIMELINE[sample.shop_name];
@@ -318,7 +323,7 @@ function startMockCalls(
       });
       let results: ShopResult[] = plans.map(({shop}) => ({ ...shop, status: "ringing" }));
       onUpdate(results);
-      if (!plans.length) return onFinish([]);
+      if (!plans.length) return onFinish([], { radiusKm, empty: "out_of_range" });
       let remaining = plans.length;
       for (const { shop, timing } of plans) {
         if (Number.isFinite(timing.talking)) timers.push(setTimeout(() => {
@@ -333,7 +338,7 @@ function startMockCalls(
           if (--remaining === 0) onFinish(results);
         }, timing.end));
       }
-    } catch { if (!cancelled) { onUpdate([]); onFinish([]); } }
+    } catch { if (!cancelled) { onUpdate([]); onFinish([], { radiusKm, empty: "lookup_failed" }); } }
   })();
   return () => { cancelled = true; controller.abort(); timers.forEach(clearTimeout); };
 }
