@@ -290,6 +290,20 @@ function Speak({ onTranscript, error, homeArea, areaChosen, onHomeArea, draft, o
         holdingRef.current = false;
         releaseRef.current?.();
     };
+    const inputRef = useRef<HTMLInputElement>(null);
+    // A repair tile starts the sentence; the type box opens with the cursor at the end for the device.
+    const pickRepair = (prompt: string) => {
+        const start = t(prompt);
+        setMissed(false);
+        setText(start);
+        setTyping(true);
+        requestAnimationFrame(() => {
+            const input = inputRef.current;
+            if (!input) return;
+            input.focus();
+            input.setSelectionRange(start.length, start.length);
+        });
+    };
     return (<section className="screen">
       <div className="glow" style={{ top: 230, left: 45 }}/>
       <div className="topbar">
@@ -304,11 +318,45 @@ function Speak({ onTranscript, error, homeArea, areaChosen, onHomeArea, draft, o
                 setSheet(false);
             }} onClose={() => setSheet(false)}/>)}
 
-      <div className="speak-body">
-        <h1>{t("What needs fixing?")}</h1>
-        <p className="sub">{t("Tell me what's broken. I'll ask nearby repair shops for a price and show you the cheapest.")}</p>
-        <div className={`mic-ring glass ${listening ? "live" : ""} ${thinking ? "busy" : ""}`}>
-          <button className="mic-btn" disabled={thinking} aria-label={t("Hold to talk")} aria-pressed={listening}
+      <div className="home-body">
+        {listening || thinking ? (<div className="listen-view" aria-live="polite">
+            <div className={`mic-ring glass ${listening ? "live" : ""} ${thinking ? "busy" : ""}`}>
+              <div className="mic-btn" aria-hidden="true"><I.Mic size={64}/></div>
+            </div>
+            <div className="mic-help">
+              <b>{thinking ? t("Got it") : t("Listening\u2026")}</b>
+              <p>{thinking ? t("Reading your request\u2026") : t("Keep holding while you talk. Let go to send.")}</p>
+            </div>
+          </div>) : (<>
+            <h1>{t("What's broken?")}</h1>
+            {/* How Cally works, as pictures: your problem \u2192 shops get called \u2192 cheapest price. */}
+            <ol className="how-strip" aria-label={t("How Cally works")}>
+              <li><span className="how-icon"><I.CrackedScreen size={18}/></span>{t("You say it")}</li>
+              <li><span className="how-icon"><I.Phone size={18}/></span>{t("We call shops")}</li>
+              <li><span className="how-icon win"><I.Tag size={18}/></span>{t("Cheapest wins")}</li>
+            </ol>
+            <div className="repair-grid">
+              {REPAIRS.map(({ label, prompt, Icon }) => (<button key={label} className="repair-tile glass" onClick={() => pickRepair(prompt)}>
+                  <span className="repair-icon"><Icon size={26}/></span>
+                  <span>{t(label)}</span>
+                </button>))}
+            </div>
+            {missed && <p className="home-note" role="status">{t("I didn't catch that. Hold the mic while you talk, or type it.")}</p>}
+            {error && <p className="home-note" role="alert">{error}</p>}
+            {onShowLast && (<button className="see-call" onClick={onShowLast}>{t("See your last results")}</button>)}
+          </>)}
+      </div>
+
+      {typing ? (<form className="type-box" onSubmit={(e) => {
+                e.preventDefault();
+                if (text.trim() && !thinking)
+                    submit(text.trim());
+            }}>
+          <button type="button" className="round type-mic" onClick={() => setTyping(false)} aria-label={t("Talk instead")}><I.Mic size={20}/></button>
+          <input ref={inputRef} autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder={t(EXAMPLE_REQUEST)} aria-label={t("Describe what needs fixing")}/>
+          <button className="btn btn-primary sm" type="submit" disabled={!text.trim() || thinking}>{t("Go")}</button>
+        </form>) : (<div className="talk-row">
+          <button className={`talk-btn ${listening ? "live" : ""}`} disabled={thinking} aria-label={t("Hold to talk")} aria-pressed={listening}
             onPointerDown={(e) => {
                 if (e.button !== 0) return;
                 e.preventDefault();
@@ -320,34 +368,21 @@ function Speak({ onTranscript, error, homeArea, areaChosen, onHomeArea, draft, o
             onKeyDown={(e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); startHold(); } }}
             onKeyUp={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); endHold(); } }}
             onContextMenu={(e) => e.preventDefault()}>
-            <I.Mic size={72}/>
+            <I.Mic size={22}/>{listening ? t("Let go to send") : t("Hold to talk")}
           </button>
-        </div>
-        <div className="mic-help" aria-live="polite">
-          <b>{thinking ? t("Got it") : listening ? t("Listening\u2026") : missed ? t("I didn't catch that") : t("Hold to talk")}</b>
-          <p>
-            {thinking
-            ? t("Reading your request\u2026") : listening
-            ? t("Keep holding while you talk. Let go to send.") : missed
-            ? t("Hold the mic while you talk, or type it below.") : t("Press and hold the mic while you speak. Let go when you're done.")}
-          </p>
-        </div>
-        {error && <p role="alert" style={{ color: "var(--warn, #b3261e)", fontSize: 14 }}>{error}</p>}
-        {!listening && !thinking && (<p className="example">{t("Try:")}<i>&ldquo;{t(EXAMPLE_REQUEST)}&rdquo;</i></p>)}
-        {!listening && !thinking && onShowLast && (<button className="see-call" onClick={onShowLast}>{t("See your last results")}</button>)}
-      </div>
-
-      {typing ? (<form className="type-box" onSubmit={(e) => {
-                e.preventDefault();
-                if (text.trim() && !thinking)
-                    submit(text.trim());
-            }}>
-          <input autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder={t("What needs fixing?")} aria-label={t("Describe what needs fixing")}/>
-          <button className="btn btn-primary sm" type="submit" disabled={!text.trim() || thinking}>{t("Go")}</button>
-        </form>) : (<button className="btn btn-secondary" onClick={() => setTyping(true)}>
-          <I.Keyboard size={20}/>{t("Type instead")}</button>)}
+          <button className="round type-toggle glass" onClick={() => setTyping(true)} aria-label={t("Type instead")}><I.Keyboard size={22}/></button>
+        </div>)}
     </section>);
 }
+/** Common repairs on the home screen. Tapping one starts the request; the user adds the device. */
+const REPAIRS = [
+    { label: "Cracked screen", prompt: "Cracked screen on my ", Icon: I.CrackedScreen },
+    { label: "Battery", prompt: "Battery replacement for my ", Icon: I.Battery },
+    { label: "Water damage", prompt: "Water damage on my ", Icon: I.Droplet },
+    { label: "Charging port", prompt: "Charging port not working on my ", Icon: I.Plug },
+    { label: "Laptop", prompt: "My laptop needs fixing: ", Icon: I.Laptop },
+    { label: "Something else", prompt: "", Icon: I.More },
+];
 /** A short place name for a position or typed text, via /api/place. Null if it can't be named. */
 async function placeName(body: {
     lat: number;

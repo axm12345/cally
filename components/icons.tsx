@@ -37,3 +37,18 @@ export const Shield = ({ size = 24 }: P) =>
 export const Play = ({ size = 24 }: P) => base(size, <path d="M8 5.5v13l11-6.5z" fill="currentColor" />);
 export const Stop = ({ size = 24 }: P) => base(size, <rect x="6.5" y="6.5" width="11" height="11" rx="2.5" fill="currentColor" />);
 export const Pause =({ size = 24 }: P) => base(size, <path d="M8 5v14M16 5v14" strokeWidth={3} />);
+
+/* Repair tiles on the home screen. */
+export const CrackedScreen = ({ size = 24 }: P) =>
+  base(size, <><rect x="6" y="2.5" width="12" height="19" rx="2.5" /><path d="M10 6.5l2.5 3.5-2 2.5 3 4" /><path d="M11 18.5h2" /></>);
+export const Battery = ({ size = 24 }: P) =>
+  base(size, <><rect x="2.5" y="7" width="17" height="10" rx="2.5" /><path d="M22 10.5v3M6 10v4" /></>);
+export const Droplet = ({ size = 24 }: P) => base(size, <path d="M12 3.5s6 6.4 6 10.5a6 6 0 0 1-12 0c0-4.1 6-10.5 6-10.5z" />);
+export const Plug = ({ size = 24 }: P) =>
+  base(size, <><path d="M9 3v4M15 3v4M7 7h10v4a5 5 0 0 1-10 0z" /><path d="M12 16v5" /></>);
+export const Laptop = ({ size = 24 }: P) =>
+  base(size, <><rect x="4.5" y="5" width="15" height="10" rx="1.5" /><path d="M2.5 19h19" /></>);
+export const More = ({ size = 24 }: P) =>
+  base(size, <path d="M6 12h.01M12 12h.01M18 12h.01" strokeWidth={3.2} />);
+export const Tag = ({ size = 24 }: P) =>
+  base(size, <><path d="M3.5 12.5V4.5a1 1 0 0 1 1-1h8l8 8-9 9z" /><circle cx="8.5" cy="8.5" r="1.4" /></>);

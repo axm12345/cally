@@ -415,3 +415,29 @@ a.btn { text-decoration: none; }
 .location-map-panel > .btn { height: 46px; font-size: 15px; }
 @media (prefers-reduced-motion: reduce) { .live-dot::before { animation: none; } }
 
+/* Home: repair tiles instead of a lone mic, so it reads as "get a repair price", not a voice assistant. */
+/* Side bleed gives the tiles' shadows room, so the scroll area doesn't clip them into a grey box. */
+.home-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; margin: 0 -20px; padding: 22px 20px 16px; overflow-y: auto; overscroll-behavior: contain; }
+.home-body .glass { box-shadow: 0 6px 18px rgba(17, 19, 24, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.95); }
+[data-theme="dark"] .home-body .glass { box-shadow: 0 6px 18px #0003, inset 0 1px #ffffff08; }
+.how-strip { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.how-strip li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--muted); text-align: center; }
+.how-strip li + li::before { content: ""; position: absolute; top: 18px; right: calc(50% + 24px); width: calc(100% - 48px); border-top: 1.5px dashed var(--line); }
+.how-icon { position: relative; z-index: 1; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line); color: var(--accent); }
+.how-icon.win { background: var(--accent); border-color: transparent; color: #fff; }
+.repair-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.repair-tile { display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 14px; min-height: 104px; padding: 16px; border-radius: 22px; text-align: left; font-size: 15px; font-weight: 600; line-height: 1.25; transition: transform .15s ease; }
+.repair-tile:active { transform: scale(.97); }
+.repair-icon { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; background: var(--accent-light); color: var(--accent); }
+.home-note { margin: 0; font-size: 14px; font-weight: 500; color: var(--warn); }
+.home-body .see-call { margin: 0 auto; }
+.listen-view { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.talk-row { display: flex; align-items: center; gap: 10px; }
+.talk-btn { flex: 1; height: 60px; border-radius: 999px; display: flex; align-items: center; justify-content: center; gap: 10px; color: #fff; font-size: 17px; font-weight: 600; background: radial-gradient(circle at 18% 20%, #D946EF 0%, #6D28D9 55%, #1E3AFF 130%); box-shadow: 0 10px 24px rgba(109, 40, 217, .3); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; transition: transform .15s ease; }
+.talk-btn.live { transform: scale(.97); }
+.talk-btn:disabled { opacity: .7; }
+.type-toggle { width: 60px; height: 60px; flex: none; color: var(--accent); }
+.type-mic { width: 52px; height: 52px; flex: none; background: var(--surface); border: 1px solid var(--line); color: var(--accent); }
+@media (max-height: 700px) { .home-body { gap: 12px; padding-top: 14px; } .repair-tile { min-height: 86px; padding: 12px 14px; gap: 10px; } .repair-icon { width: 38px; height: 38px; } }
+@media (prefers-reduced-motion: reduce) { .repair-tile, .talk-btn { transition: none; } }
+
