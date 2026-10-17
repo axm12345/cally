@@ -96,14 +96,12 @@ type SpeechRec = {
     lang: string;
     interimResults: boolean;
     continuous: boolean;
-    onspeechstart: (() => void) | null;
-    onspeechend: (() => void) | null;
     onresult: ((e: {
         results: ArrayLike<ArrayLike<{
             transcript: string;
         }>>;
     }) => void) | null;
-    onerror: (() => void) | null;
+    onerror: ((e?: { error?: string }) => void) | null;
     onend: (() => void) | null;
     start: () => void;
     stop: () => void;
@@ -123,14 +121,13 @@ function Speak({ onTranscript, error, homeArea, onHomeArea, }: {
     const [thinking, setThinking] = useState(false);
     const [missed, setMissed] = useState(false);
     const recRef = useRef<SpeechRec | null>(null);
-    const gotRef = useRef(false);
-    const pauseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const finishRef = useRef<(() => void) | null>(null);
+    const holdingRef = useRef(false);
+    const releaseRef = useRef<(() => void) | null>(null);
     useEffect(() => () => {
-        if (pauseRef.current) clearTimeout(pauseRef.current);
-        finishRef.current = null;
+        holdingRef.current = false;
+        releaseRef.current = null;
         const rec = recRef.current;
-        if (rec) { rec.onresult = null; rec.onend = null; rec.onerror = null; rec.onspeechstart = null; rec.onspeechend = null; rec.stop(); }
+        if (rec) { rec.onresult = null; rec.onend = null; rec.onerror = null; rec.stop(); }
     }, []);
     useEffect(() => {
         if (error)
@@ -141,14 +138,10 @@ function Speak({ onTranscript, error, homeArea, onHomeArea, }: {
         setThinking(true);
         onTranscript(t);
     };
-    const toggleMic = () => {
-        if (thinking)
+    const startHold = () => {
+        if (thinking || holdingRef.current)
             return;
         setMissed(false);
-        if (listening) {
-            finishRef.current?.();
-            return;
-        }
         const Ctor = (window as unknown as {
             SpeechRecognition?: new () => SpeechRec;
             webkitSpeechRecognition?: new () => SpeechRec;
@@ -163,45 +156,40 @@ function Speak({ onTranscript, error, homeArea, onHomeArea, }: {
         }
         const rec = new Ctor();
         rec.lang = uiLanguage === "th" ? "th-TH" : uiLanguage === "yue" ? "yue-HK" : "en-US";
-        // Keep collecting speech across short pauses; submit only after 1.8 seconds of quiet.
+        // Listen for as long as the button is held; letting go stops and submits.
         rec.interimResults = true;
         rec.continuous = true;
-        gotRef.current = false;
+        holdingRef.current = true;
         let completed = false;
         let pending = "";
         let previousSession = "";
-        const clearPause = () => {
-            if (pauseRef.current) clearTimeout(pauseRef.current);
-            pauseRef.current = null;
-        };
+        let releaseTimer: ReturnType<typeof setTimeout> | null = null;
         const finish = () => {
             if (completed) return;
             completed = true;
-            clearPause();
-            finishRef.current = null;
-            rec.stop();
+            if (releaseTimer) clearTimeout(releaseTimer);
+            releaseRef.current = null;
             setListening(false);
             if (pending.trim()) submit(pending.trim());
             else { setMissed(true); setTyping(true); }
         };
-        const waitForPause = () => {
-            clearPause();
-            if (pending.trim()) pauseRef.current = setTimeout(finish, 1800);
+        releaseRef.current = () => {
+            // Let the browser deliver the last words before submitting, but don't wait on it forever.
+            try { rec.stop(); } catch { finish(); return; }
+            releaseTimer = setTimeout(finish, 1500);
         };
-        finishRef.current = finish;
-        rec.onspeechstart = clearPause;
-        rec.onspeechend = waitForPause;
         rec.onresult = (e) => {
             if (completed) return;
             pending = [previousSession, Array.from(e.results, result => result[0].transcript).join(" ")].filter(Boolean).join(" ");
-            gotRef.current = !!pending.trim();
-            waitForPause();
         };
-        rec.onerror = () => {
+        rec.onerror = (e) => {
             if (completed) return;
+            // Silence or a stop() call: onend follows and decides what to do.
+            if (e?.error === "no-speech" || e?.error === "aborted") return;
             completed = true;
-            clearPause();
-            finishRef.current = null;
+            holdingRef.current = false;
+            if (releaseTimer) clearTimeout(releaseTimer);
+            releaseRef.current = null;
             setListening(false);
             setText(pending.trim());
             setMissed(true);
@@ -209,16 +197,23 @@ function Speak({ onTranscript, error, homeArea, onHomeArea, }: {
         };
         rec.onend = () => {
             if (completed) return;
-            if (!pending.trim()) { finish(); return; }
-            // Some browsers end recognition on their own. Preserve the text and
-            // restart during the grace period so a resumed sentence is included.
-            previousSession = pending;
-            if (!pauseRef.current) waitForPause();
-            try { rec.start(); } catch { /* Existing pause timer will finish safely. */ }
+            if (holdingRef.current) {
+                // Some browsers end recognition on their own. Keep the text and
+                // restart so listening continues for as long as the button is held.
+                previousSession = pending;
+                try { rec.start(); return; } catch { /* Submit what was heard so far. */ }
+            }
+            finish();
         };
         recRef.current = rec;
         setListening(true);
-        try { rec.start(); } catch { rec.onerror?.(); }
+        try { rec.start(); } catch { rec.onerror?.({}); }
+    };
+    const endHold = () => {
+        if (!holdingRef.current)
+            return;
+        holdingRef.current = false;
+        releaseRef.current?.();
     };
     return (<section className="screen">
       <div className="glow" style={{ top: 230, left: 45 }}/>
@@ -238,17 +233,28 @@ function Speak({ onTranscript, error, homeArea, onHomeArea, }: {
         <h1>{t("What needs fixing?")}</h1>
         <p className="sub">{t("Just say it. I'll find the cheapest shop.")}</p>
         <div className={`mic-ring glass ${listening ? "live" : ""} ${thinking ? "busy" : ""}`}>
-          <button className="mic-btn" onClick={toggleMic} disabled={thinking} aria-label={listening ? t("Stop listening") : t("Start talking")}>
-            {listening ? <I.Stop size={56}/> : <I.Mic size={72}/>}
+          <button className="mic-btn" disabled={thinking} aria-label={t("Hold to talk")} aria-pressed={listening}
+            onPointerDown={(e) => {
+                if (e.button !== 0) return;
+                e.preventDefault();
+                // Capture the pointer so letting go anywhere on screen still ends the hold.
+                try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* Release on the button still works. */ }
+                startHold();
+            }}
+            onPointerUp={endHold} onPointerCancel={endHold} onLostPointerCapture={endHold} onBlur={endHold}
+            onKeyDown={(e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); startHold(); } }}
+            onKeyUp={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); endHold(); } }}
+            onContextMenu={(e) => e.preventDefault()}>
+            <I.Mic size={72}/>
           </button>
         </div>
         <div className="mic-help" aria-live="polite">
-          <b>{thinking ? t("Got it") : listening ? t("Listening\u2026") : missed ? t("I didn't catch that") : t("Tap once, then talk")}</b>
+          <b>{thinking ? t("Got it") : listening ? t("Listening\u2026") : missed ? t("I didn't catch that") : t("Hold to talk")}</b>
           <p>
             {thinking
             ? t("Reading your request\u2026") : listening
-            ? t("Talk now. Tap the square when you're done.") : missed
-            ? t("Tap to try again, or type it below.") : t("No need to hold it. I stop when you pause.")}
+            ? t("Keep holding while you talk. Let go to send.") : missed
+            ? t("Hold the mic while you talk, or type it below.") : t("Press and hold the mic while you speak. Let go when you're done.")}
           </p>
         </div>
         {error && <p role="alert" style={{ color: "var(--warn, #b3261e)", fontSize: 14 }}>{error}</p>}
