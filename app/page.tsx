@@ -28,6 +28,8 @@ function CallyPage() {
     const [transcript, setTranscript] = useState("");
     // Prefills the type box when the user goes back from "Is this right?" to correct their request.
     const [speakDraft, setSpeakDraft] = useState("");
+    // The repair tile the user picked; null shows the tiles, otherwise the mic screen for that repair.
+    const [repair, setRepair] = useState<RepairKey | null>(null);
     const [summary, setSummary] = useState<RequestSummary | null>(null);
     const [results, setResults] = useState<ShopResult[]>([]);
     const [callsRunning, setCallsRunning] = useState(false);
@@ -77,6 +79,8 @@ function CallyPage() {
         setOutcome(null);
         setResults([]);
         setCallsRunning(true);
+        // Closing the results later lands back on the tiles, not a half-finished mic screen.
+        setRepair(null);
         setScreen("calling");
         let timeout: ReturnType<typeof setTimeout>;
         const finish = (_results?: ShopResult[], searchOutcome?: SearchOutcome) => {
@@ -103,15 +107,20 @@ function CallyPage() {
         setCallsRunning(false);
         setScreen(next);
     };
+    // Back from "Is this right?" reopens the mic screen with the request ready to edit. The text
+    // already includes the repair, so it goes to the generic screen to avoid repeating it.
+    const backToSpeak = () => {
+        setSpeakDraft(transcript);
+        setRepair("other");
+        setScreen("speak");
+    };
     // What the phone's Back button does on each screen: the same as the on-screen back/close.
     const goBack = () => {
         if (areaSheet) { setAreaSheet(false); return; }
         if (screen === "details") setScreen("options");
         else if (screen === "options" || screen === "calling") stopCalling("speak");
-        else {
-            if (screen === "confirm") setSpeakDraft(transcript);
-            setScreen("speak");
-        }
+        else if (screen === "confirm") backToSpeak();
+        else setRepair(null);
     };
     const goBackRef = useRef(goBack);
     goBackRef.current = goBack;
@@ -119,22 +128,27 @@ function CallyPage() {
     // app instead of leaving it.
     const trappedRef = useRef(false);
     const ignorePopRef = useRef(false);
+    const away = screen !== "speak" || repair !== null;
+    // Bumped on every Back press, so the entry is re-added even when "away" stays true
+    // (e.g. Back from "Is this right?" lands on the mic screen, still away from the tiles).
+    const [pops, setPops] = useState(0);
     useEffect(() => {
-        if (screen !== "speak" && !trappedRef.current) {
+        if (away && !trappedRef.current) {
             history.pushState({ cally: true }, "");
             trappedRef.current = true;
         }
-        else if (screen === "speak" && trappedRef.current) {
+        else if (!away && trappedRef.current) {
             trappedRef.current = false;
             ignorePopRef.current = true;
             history.back();
         }
-    }, [screen]);
+    }, [away, pops]);
     useEffect(() => {
         const onPop = () => {
             if (ignorePopRef.current) { ignorePopRef.current = false; return; }
             trappedRef.current = false;
             goBackRef.current();
+            setPops((n) => n + 1);
         };
         window.addEventListener("popstate", onPop);
         return () => window.removeEventListener("popstate", onPop);
@@ -142,8 +156,8 @@ function CallyPage() {
     return (<main className="app">
       <Settings />
       {creditNotice && screen === "options" && !callsRunning && <div className="credit-result-note" role="status">{creditNotice}</div>}
-      {screen === "speak" && <Speak onTranscript={submitTranscript} error={error} homeArea={homeArea} areaChosen={areaChosen} onHomeArea={setHomeArea} draft={speakDraft} onShowLast={results.length ? () => setScreen("options") : undefined}/>}
-      {screen === "confirm" && summary && (<Confirm transcript={transcript} summary={summary} areaChosen={areaChosen || nearSaid}onChange={setSummary} onEditArea={() => setAreaSheet(true)} onBack={() => { setSpeakDraft(transcript); setScreen("speak"); }} onYes={() => { void beginCalling(); }} starting={starting}/>)}
+      {screen === "speak" && <Speak onTranscript={submitTranscript} error={error} homeArea={homeArea} areaChosen={areaChosen} onHomeArea={setHomeArea} draft={speakDraft} repair={repair} onRepair={setRepair} onShowLast={results.length ? () => setScreen("options") : undefined}/>}
+      {screen === "confirm" && summary && (<Confirm transcript={transcript} summary={summary} areaChosen={areaChosen || nearSaid} onChange={setSummary} onEditArea={() => setAreaSheet(true)} onBack={backToSpeak} onYes={() => { void beginCalling(); }} starting={starting}/>)}
       {screen === "calling" && (<Calling results={results} onShow={() => setScreen("options")} onCancel={() => stopCalling("speak")}/>)}
       {screen === "options" && (<Options results={results} outcome={outcome} running={callsRunning} onClose={() => stopCalling("speak")} onRetry={() => setScreen("confirm")} onWiden={() => setAreaSheet(true)} onOpen={(s) => {
                 setSelected(s);
@@ -177,7 +191,7 @@ type SpeechRec = {
     start: () => void;
     stop: () => void;
 };
-function Speak({ onTranscript, error, homeArea, areaChosen, onHomeArea, draft, onShowLast, }: {
+function Speak({ onTranscript, error, homeArea, areaChosen, onHomeArea, draft, repair, onRepair, onShowLast, }: {
     onTranscript: (t: string) => void;
     error: string | null;
     homeArea: string;
@@ -185,6 +199,8 @@ function Speak({ onTranscript, error, homeArea, areaChosen, onHomeArea, draft, o
     onHomeArea: (area: string) => void;
     /** The last request, kept so "say it again" can edit it instead of starting over. */
     draft: string;
+    repair: RepairKey | null;
+    onRepair: (repair: RepairKey | null) => void;
     onShowLast?: () => void;
 }) {
     const { t, uiLanguage } = usePreferences();
@@ -208,10 +224,18 @@ function Speak({ onTranscript, error, homeArea, areaChosen, onHomeArea, draft, o
         if (error)
             setThinking(false);
     }, [error]);
-    const submit = (t: string) => {
+    const chosen = REPAIRS.find((r) => r.key === repair) ?? null;
+    // The tile already says what's broken, so the user only adds the device and timing.
+    const submit = (said: string) => {
         setListening(false);
         setThinking(true);
-        onTranscript(t);
+        onTranscript(chosen && chosen.key !== "other" ? `${t(chosen.label)}, ${said}` : said);
+    };
+    const openRepair = (key: RepairKey | null) => {
+        setMissed(false);
+        setTyping(false);
+        setText("");
+        onRepair(key);
     };
     const startHold = () => {
         if (thinking || holdingRef.current)
@@ -290,20 +314,6 @@ function Speak({ onTranscript, error, homeArea, areaChosen, onHomeArea, draft, o
         holdingRef.current = false;
         releaseRef.current?.();
     };
-    const inputRef = useRef<HTMLInputElement>(null);
-    // A repair tile starts the sentence; the type box opens with the cursor at the end for the device.
-    const pickRepair = (prompt: string) => {
-        const start = t(prompt);
-        setMissed(false);
-        setText(start);
-        setTyping(true);
-        requestAnimationFrame(() => {
-            const input = inputRef.current;
-            if (!input) return;
-            input.focus();
-            input.setSelectionRange(start.length, start.length);
-        });
-    };
     return (<section className="screen">
       <div className="glow" style={{ top: 230, left: 45 }}/>
       <div className="topbar">
@@ -318,70 +328,80 @@ function Speak({ onTranscript, error, homeArea, areaChosen, onHomeArea, draft, o
                 setSheet(false);
             }} onClose={() => setSheet(false)}/>)}
 
-      <div className="home-body">
-        {listening || thinking ? (<div className="listen-view" aria-live="polite">
-            <div className={`mic-ring glass ${listening ? "live" : ""} ${thinking ? "busy" : ""}`}>
-              <div className="mic-btn" aria-hidden="true"><I.Mic size={64}/></div>
-            </div>
-            <div className="mic-help">
-              <b>{thinking ? t("Got it") : t("Listening\u2026")}</b>
-              <p>{thinking ? t("Reading your request\u2026") : t("Keep holding while you talk. Let go to send.")}</p>
-            </div>
-          </div>) : (<>
-            <h1>{t("What's broken?")}</h1>
-            {/* How Cally works, as pictures: your problem \u2192 shops get called \u2192 cheapest price. */}
-            <ol className="how-strip" aria-label={t("How Cally works")}>
-              <li><span className="how-icon"><I.CrackedScreen size={18}/></span>{t("You say it")}</li>
-              <li><span className="how-icon"><I.Phone size={18}/></span>{t("We call shops")}</li>
-              <li><span className="how-icon win"><I.Tag size={18}/></span>{t("Cheapest wins")}</li>
-            </ol>
-            <div className="repair-grid">
-              {REPAIRS.map(({ label, prompt, Icon }) => (<button key={label} className="repair-tile glass" onClick={() => pickRepair(prompt)}>
-                  <span className="repair-icon"><Icon size={26}/></span>
-                  <span>{t(label)}</span>
-                </button>))}
-            </div>
-            {missed && <p className="home-note" role="status">{t("I didn't catch that. Hold the mic while you talk, or type it.")}</p>}
-            {error && <p className="home-note" role="alert">{error}</p>}
-            {onShowLast && (<button className="see-call" onClick={onShowLast}>{t("See your last results")}</button>)}
-          </>)}
-      </div>
-
-      {typing ? (<form className="type-box" onSubmit={(e) => {
-                e.preventDefault();
-                if (text.trim() && !thinking)
-                    submit(text.trim());
-            }}>
-          <button type="button" className="round type-mic" onClick={() => setTyping(false)} aria-label={t("Talk instead")}><I.Mic size={20}/></button>
-          <input ref={inputRef} autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder={t(EXAMPLE_REQUEST)} aria-label={t("Describe what needs fixing")}/>
-          <button className="btn btn-primary sm" type="submit" disabled={!text.trim() || thinking}>{t("Go")}</button>
-        </form>) : (<div className="talk-row">
-          <button className={`talk-btn ${listening ? "live" : ""}`} disabled={thinking} aria-label={t("Hold to talk")} aria-pressed={listening}
-            onPointerDown={(e) => {
-                if (e.button !== 0) return;
-                e.preventDefault();
-                // Capture the pointer so letting go anywhere on screen still ends the hold.
-                try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* Release on the button still works. */ }
-                startHold();
-            }}
-            onPointerUp={endHold} onPointerCancel={endHold} onLostPointerCapture={endHold} onBlur={endHold}
-            onKeyDown={(e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); startHold(); } }}
-            onKeyUp={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); endHold(); } }}
-            onContextMenu={(e) => e.preventDefault()}>
-            <I.Mic size={22}/>{listening ? t("Let go to send") : t("Hold to talk")}
+      {chosen ? (<>
+        <div className="speak-body">
+          <button className="repair-chip glass" onClick={() => openRepair(null)} aria-label={`${t(chosen.label)}. ${t("Change repair")}`}>
+            <chosen.Icon size={18}/><span>{t(chosen.label)}</span><I.Close size={16}/>
           </button>
-          <button className="round type-toggle glass" onClick={() => setTyping(true)} aria-label={t("Type instead")}><I.Keyboard size={22}/></button>
-        </div>)}
+          <h1 className="repair-question">{t(chosen.question)}</h1>
+          <p className="example">{t("For example:")} <i>&ldquo;{t(chosen.example)}&rdquo;</i></p>
+          <div className={`mic-ring glass ${listening ? "live" : ""} ${thinking ? "busy" : ""}`}>
+            <button className="mic-btn" disabled={thinking} aria-label={t("Hold to talk")} aria-pressed={listening}
+              onPointerDown={(e) => {
+                  if (e.button !== 0) return;
+                  e.preventDefault();
+                  // Capture the pointer so letting go anywhere on screen still ends the hold.
+                  try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* Release on the button still works. */ }
+                  startHold();
+              }}
+              onPointerUp={endHold} onPointerCancel={endHold} onLostPointerCapture={endHold} onBlur={endHold}
+              onKeyDown={(e) => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); startHold(); } }}
+              onKeyUp={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); endHold(); } }}
+              onContextMenu={(e) => e.preventDefault()}>
+              <I.Mic size={64}/>
+            </button>
+          </div>
+          <div className="mic-help" aria-live="polite">
+            <b>{thinking ? t("Got it") : listening ? t("Listening…") : missed ? t("I didn't catch that") : t("Hold to talk")}</b>
+            <p>{thinking ? t("Reading your request…") : listening ? t("Let go to send") : missed ? t("Hold the mic while you talk, or type it below.") : t("Let go when you're done")}</p>
+          </div>
+          {error && <p className="home-note" role="alert">{error}</p>}
+        </div>
+        {typing ? (<form className="type-box" onSubmit={(e) => {
+                  e.preventDefault();
+                  if (text.trim() && !thinking)
+                      submit(text.trim());
+              }}>
+            <input autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder={t(chosen.example)} aria-label={t(chosen.question)}/>
+            <button className="btn btn-primary sm" type="submit" disabled={!text.trim() || thinking}>{t("Go")}</button>
+          </form>) : (<button className="btn btn-secondary" onClick={() => setTyping(true)}>
+            <I.Keyboard size={20}/>{t("Type instead")}</button>)}
+      </>) : (<>
+        <div className="home-body">
+          <h1>{t("What's broken?")}</h1>
+          {/* How Cally works, as pictures: your problem → shops get called → cheapest price. */}
+          <ol className="how-strip" aria-label={t("How Cally works")}>
+            <li><span className="how-icon"><I.CrackedScreen size={18}/></span>{t("You say it")}</li>
+            <li><span className="how-icon"><I.Phone size={18}/></span>{t("We call shops")}</li>
+            <li><span className="how-icon win"><I.Tag size={18}/></span>{t("Cheapest wins")}</li>
+          </ol>
+          <div className="repair-grid">
+            {REPAIRS.filter((r) => r.key !== "other").map(({ key, label, Icon }) => (<button key={key} className="repair-tile glass" onClick={() => openRepair(key)}>
+                <span className="repair-icon"><Icon size={26}/></span>
+                <span>{t(label)}</span>
+              </button>))}
+            <button className="repair-tile glass" onClick={() => openRepair("other")}>
+              <span className="repair-icon"><I.More size={26}/></span>
+              <span>{t("Something else")}</span>
+            </button>
+          </div>
+          {error && <p className="home-note" role="alert">{error}</p>}
+          {onShowLast && (<button className="see-call" onClick={onShowLast}>{t("See your last results")}</button>)}
+        </div>
+        <button className="btn btn-secondary" onClick={() => openRepair("other")}>
+          <I.Mic size={20}/>{t("Or just say it")}</button>
+      </>)}
     </section>);
 }
-/** Common repairs on the home screen. Tapping one starts the request; the user adds the device. */
-const REPAIRS = [
-    { label: "Cracked screen", prompt: "Cracked screen on my ", Icon: I.CrackedScreen },
-    { label: "Battery", prompt: "Battery replacement for my ", Icon: I.Battery },
-    { label: "Water damage", prompt: "Water damage on my ", Icon: I.Droplet },
-    { label: "Charging port", prompt: "Charging port not working on my ", Icon: I.Plug },
-    { label: "Laptop", prompt: "My laptop needs fixing: ", Icon: I.Laptop },
-    { label: "Something else", prompt: "", Icon: I.More },
+type RepairKey = "screen" | "battery" | "water" | "charging" | "laptop" | "other";
+/** Common repairs on the home screen. Each opens the mic asking only for what's still missing. */
+const REPAIRS: { key: RepairKey; label: string; question: string; example: string; Icon: typeof I.Mic }[] = [
+    { key: "screen", label: "Cracked screen", question: "Which phone is it?", example: "iPhone 13, need it today", Icon: I.CrackedScreen },
+    { key: "battery", label: "Battery", question: "Which device needs a battery?", example: "Samsung S22, drains by lunchtime", Icon: I.Battery },
+    { key: "water", label: "Water damage", question: "Which device got wet?", example: "iPhone 12, dropped it in water this morning", Icon: I.Droplet },
+    { key: "charging", label: "Charging port", question: "Which device won't charge?", example: "Pixel 7, cable keeps falling out", Icon: I.Plug },
+    { key: "laptop", label: "Laptop", question: "What's wrong with your laptop?", example: "MacBook Air, keyboard stopped working", Icon: I.Laptop },
+    { key: "other", label: "Something else", question: "What's broken?", example: EXAMPLE_REQUEST, Icon: I.More },
 ];
 /** A short place name for a position or typed text, via /api/place. Null if it can't be named. */
 async function placeName(body: {

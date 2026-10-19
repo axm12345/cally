@@ -441,3 +441,11 @@ a.btn { text-decoration: none; }
 @media (max-height: 700px) { .home-body { gap: 12px; padding-top: 14px; } .repair-tile { min-height: 86px; padding: 12px 14px; gap: 10px; } .repair-icon { width: 38px; height: 38px; } }
 @media (prefers-reduced-motion: reduce) { .repair-tile, .talk-btn { transition: none; } }
 
+
+/* Mic screen after picking a repair: the chip says what's broken, the question asks what's missing. */
+.repair-chip { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px 0 14px; margin-bottom: 18px; border-radius: 999px; font-size: 15px; font-weight: 600; color: var(--accent); }
+.repair-chip svg:last-child { color: var(--muted); }
+.repair-question { font-size: 30px; }
+.speak-body .example { margin-top: 10px; max-width: 280px; }
+.speak-body .mic-ring { margin: 28px 0 18px; }
+@media (max-height: 700px) { .repair-question { font-size: 26px; } .speak-body .mic-ring { margin: 18px 0 12px; } }
