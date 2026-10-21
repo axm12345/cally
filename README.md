@@ -50,7 +50,7 @@ You speak or type ─► Claude turns it into a call brief (device, problem, dea
 - **First-time-user testing.** I used the app as someone who had never seen it, found the 9 most confusing parts, and fixed them.
 - **Home screen redesign.** Testers thought it was "some AI talking app", so the first screen now shows *repair → we call shops → cheapest wins* at a glance.
 
-Built with [@aarush-hitgub](https://github.com/aarush-hitgub), who built the phone-calling engine (Vonage ↔ ElevenLabs), the payment demo, the radius slider and the real shop listings.
+<sub>Co-built with [@aarush-hitgub](https://github.com/aarush-hitgub) (phone-calling engine, payment demo, shop listings).</sub>
 
 ## Run it yourself
 

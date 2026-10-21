@@ -1,14 +1,14 @@
-# Cally v1.2
+# Cally: setup and calling notes
 
-Private handoff of the current assembled Cally app, based on axm12345/cally. That original repository is unchanged.
+Detailed notes for running Cally locally and for the real phone-calling setup. For what Cally is and how to try it, see the main [README](../README.md).
 
 ## Windows startup
 
-Use Node.js 24 LTS. Accept the repository invitation, then:
+Use Node.js 24 LTS, then:
 
 ```powershell
-git clone https://github.com/aarush-hitgub/cally-v1.2.git
-cd cally-v1.2
+git clone https://github.com/axm12345/cally.git
+cd cally
 npm.cmd ci
 npm.cmd run dev -- --hostname 127.0.0.1 --port 3200
 ```
@@ -52,7 +52,7 @@ Production build and TypeScript passed. Map pin dragging, confirmation and stree
 
 Web dependency audit reports two affected packages (one moderate, one high via PostCSS/Next.js). Backup service installs previously reported zero. Preserve the lockfile for reproducibility; review upgrades separately instead of audit fix --force. A parent lockfile warning on the original laptop did not prevent building.
 
-There is no authentication protecting paid-call endpoints. Keep local until access control is added; do not expose this configuration publicly. Real payments/credits are not implemented; CALLY-PAYMENTS-STANDBY.md is a proposal. See UPSTREAM-README.md for original project documentation; this README describes the current handoff.
+Real phone calls are switched off in the public deployment (no calling keys and no live numbers are configured there). If you enable real calls on your own machine, keep it local: the call endpoints have no login yet. Real payments/credits are not implemented; CALLY-PAYMENTS-STANDBY.md is a proposal. See UPSTREAM-README.md for original project documentation; these notes describe the current version.
 
 ## Location-based demo update
 The public demo now resolves real business listings for the selected area and repair request through Google Places (GOOGLE_MAPS_API_KEY is server-only). No phone numbers are requested for discovery, and those shops are not called. Conversations and sample prices are explicitly simulated; timings are staggered over roughly 40–65 seconds. View shop listing opens the real listing rather than dialing. U-bot integration was cancelled.
