@@ -4,7 +4,7 @@ Source: https://github.com/axm12345/cally (main archive downloaded 16 October 20
 A separate downloaded copy; no changes were pushed to the repository.
 
 Open http://127.0.0.1:3200 while the current production server is running.
-For future development, stop the existing server first, then double-click START-CALLY-LOCAL.cmd.
+For future development, stop the existing server first, then double-click START-CALLY-LOCAL.cmd in the project folder.
 
 Completed: locked dependency installation, production build, backup caller dependency installation and syntax checks, homepage browser check, and mock call endpoint check. Existing source files were preserved. Known local ElevenLabs key, agent and imported SIP phone ID are in .env.local; backup credentials are in caller/controller and caller/connector. Values are not printed here.
 
