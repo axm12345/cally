@@ -1,6 +1,6 @@
 # Cally: an AI agent that calls repair shops for you
 
-**[Try the live demo →](https://callme-ochre.vercel.app)** (works best on a phone)
+**[Try the live demo →](https://cally-repair.vercel.app)** (works best on a phone)
 
 Getting a phone or laptop fixed means calling shop after shop to ask *"how much, and how long?"*. Cally does that for you. Describe what's broken, and an AI voice agent phones the repair shops near you, asks for a price and turnaround time, and lays the quotes out side by side.
 
