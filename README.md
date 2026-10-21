@@ -1,40 +1,58 @@
 # Cally: an AI agent that calls repair shops for you
 
-**[Try the live demo →](https://cally-repair.vercel.app)** (works best on a phone)
+**Tell Cally what's broken. It phones the repair shops near you, asks each one for a price and how long it'll take, and shows you the cheapest first.**
 
-Getting a phone or laptop fixed means calling shop after shop to ask *"how much, and how long?"*. Cally does that for you. Describe what's broken, and an AI voice agent phones the repair shops near you, asks for a price and turnaround time, and lays the quotes out side by side.
+[![Open Cally (live app)](https://img.shields.io/badge/▶%20Open%20Cally-live%20app-5b21b6?style=for-the-badge)](https://cally-repair.vercel.app)
 
-<img src="docs/cally-home.png" alt="Cally home screen: pick what's broken, or just say it" width="300">
+| 1. Say what's broken | 2. Cally calls nearby shops | 3. Cheapest first |
+|:---:|:---:|:---:|
+| <img src="docs/cally-home.png" width="230" alt="Pick what's broken, or just say it"> | <img src="docs/cally-calling.jpg" width="230" alt="AI agent talking to five repair shops"> | <img src="docs/cally-results.jpg" width="230" alt="Prices compared, cheapest first"> |
+
+## Try it in 1 minute
+
+Works best on a phone, but a laptop is fine too.
+
+1. Open **[cally-repair.vercel.app](https://cally-repair.vercel.app)**.
+2. Tap **Cracked screen**.
+3. Tap **Type instead**, write *"iPhone 13, need it today"*, and press Enter. You can also hold the mic and say it.
+4. Check the details, then tap **Yes, find me a shop**.
+5. After about a minute, you get real shops near you, sorted by price.
+
+> **Demo mode:** the shop listings are real (from Google Maps), but the calls and prices are simulated, so no shop's phone actually rings. Real calls work and were tested on a test phone line.
+
+## Why I built it
+
+Getting a phone fixed in Bangkok means calling shop after shop to ask *"how much, and when can it be ready?"*. It's slow and awkward. Cally makes those calls for you, in Thai or English.
 
 ## How it works
 
-1. **Say what's wrong.** Hold the mic and talk, tap a repair type (cracked screen, battery…), or type. Works in English, Thai or Cantonese.
-2. **Pick where.** Drop a pin on the map and set a 1–20 km radius. Real shops come from Google Places, and anything outside the radius is excluded.
-3. **Cally makes the calls.** Claude turns your request into a short call brief. An ElevenLabs voice agent calls each shop over a SIP phone line and asks the questions, in Thai or English.
-4. **Compare quotes.** Claude reads each call transcript and pulls out the price and wait time, so you see one clean comparison.
+```
+You speak or type ─► Claude turns it into a call brief (device, problem, deadline)
+                 ─► Google Places finds repair shops inside your radius
+                 ─► ElevenLabs voice agent calls each shop over a phone line
+                 ─► Claude reads each call and pulls out price + ready time
+                 ─► You see the quotes side by side, cheapest first
+```
 
-> **Demo mode:** the public demo uses real shop listings, but the calls and prices are simulated so nobody's phone rings. Real calls were tested against a test number.
-
-## Tech
-
-| | |
+| Part | Tech |
 |---|---|
-| App | Next.js (App Router), TypeScript, deployed on Vercel |
-| AI | Claude (Haiku) for parsing requests and summarizing call transcripts |
-| Voice calls | ElevenLabs conversational agent, outbound over a Vonage SIP number |
-| Places | Google Places for real shop listings, OpenStreetMap for the location picker |
+| App | Next.js, TypeScript, hosted on Vercel |
+| Understanding requests and calls | Claude API (Haiku) |
+| Phone calls | ElevenLabs voice agent over a Vonage SIP number |
+| Finding shops | Google Places, plus OpenStreetMap for the map picker |
+| Languages | English, Thai and Cantonese |
 
 ## What I worked on
 
-- **Original app:** the request → call → quote flow, the Speak screen, wiring Claude and the direct ElevenLabs/Vonage calling path.
+- **The original app:** the request → call → quote flow, the speaking screen, and connecting Claude and the phone calling.
 - **Hold-to-talk mic.** Press and hold to speak, release to send.
-- **Radius enforcement.** Calls only go to shops inside the chosen km range, with a clear message to widen it if none are left.
-- **First-time-user pass.** Tested the app as someone who had never seen it, then fixed the 9 biggest points of confusion.
-- **Home screen redesign.** Testers thought it was "some AI talking app", so the first screen now shows repair price comparison at a glance.
+- **Search radius that's respected.** Calls only go to shops inside the distance you pick. If none are left, you're told to widen it.
+- **First-time-user testing.** I used the app as someone who had never seen it, found the 9 most confusing parts, and fixed them.
+- **Home screen redesign.** Testers thought it was "some AI talking app", so the first screen now shows *repair → we call shops → cheapest wins* at a glance.
 
-Built with [@aarush-hitgub](https://github.com/aarush-hitgub), who built the Vonage ↔ ElevenLabs caller, the payment demo, the radius slider and the location-based listings.
+Built with [@aarush-hitgub](https://github.com/aarush-hitgub), who built the phone-calling engine (Vonage ↔ ElevenLabs), the payment demo, the radius slider and the real shop listings.
 
-## Run it locally
+## Run it yourself
 
 Requires Node.js 24.
 
@@ -43,4 +61,4 @@ npm ci
 npm run dev -- --hostname 127.0.0.1 --port 3200
 ```
 
-API keys (Anthropic, ElevenLabs, Google Maps) go in `.env.local` and are never committed. Without them the app falls back to demo data. Detailed setup and calling notes are in [docs/SETUP-NOTES.md](docs/SETUP-NOTES.md).
+API keys (Anthropic, ElevenLabs, Google Maps) go in `.env.local` and are never committed. Without them the app falls back to demo data. Full setup and calling notes are in [docs/SETUP-NOTES.md](docs/SETUP-NOTES.md).
