@@ -449,3 +449,6 @@ a.btn { text-decoration: none; }
 .speak-body .example { margin-top: 10px; max-width: 280px; }
 .speak-body .mic-ring { margin: 28px 0 18px; }
 @media (max-height: 700px) { .repair-question { font-size: 26px; } .speak-body .mic-ring { margin: 18px 0 12px; } }
+
+/* Area sheet: the button reads "Done", "Set" or "Saving…", so it needs room for the longer labels. */
+.type-box .btn.area-set { width: auto; min-width: 84px; padding: 0 16px; white-space: nowrap; }

@@ -493,11 +493,13 @@ function AreaSheet({ current, onPick, onClose, }: {
         {note && <p role="alert" className="sheet-note">{note}</p>}
         <form className="type-box" onSubmit={(e) => {
             e.preventDefault();
-            if (text.trim() && !saving)
-                void setTyped(text.trim().slice(0, 80));
+            if (saving) return;
+            // With nothing typed, the button means "done": the radius slider has already saved.
+            if (!text.trim()) { onClose(); return; }
+            void setTyped(text.trim().slice(0, 80));
         }}>
           <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t("Type an area")} aria-label={t("Type a different area")} disabled={saving}/>
-          <button className="btn btn-primary sm" type="submit" disabled={saving}>{saving ? "…" : t("Set")}</button>
+          <button className="btn btn-primary sm area-set" type="submit" disabled={saving}>{saving ? t("Saving…") : text.trim() ? t("Set") : t("Done")}</button>
         </form>
       </div>
     </div>);

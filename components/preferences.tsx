@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 
 export const thai: Record<string, string> = {
  "Search radius": "รัศมีการค้นหา", "Straight-line distance from the selected location.": "ระยะทางเส้นตรงจากตำแหน่งที่เลือก",
- "Increase search radius": "เพิ่มรัศมีการค้นหา", "Change area": "เปลี่ยนพื้นที่", "Try again": "ลองอีกครั้ง", "Couldn't load shop listings. Try again in a moment.": "โหลดรายชื่อร้านไม่สำเร็จ กรุณาลองใหม่อีกครั้ง",
+ "Done": "เสร็จ", "Saving…": "กำลังบันทึก…", "Increase search radius": "เพิ่มรัศมีการค้นหา", "Change area": "เปลี่ยนพื้นที่", "Try again": "ลองอีกครั้ง", "Couldn't load shop listings. Try again in a moment.": "โหลดรายชื่อร้านไม่สำเร็จ กรุณาลองใหม่อีกครั้ง",
  "Tell me what's broken. I'll ask nearby repair shops for a price and show you the cheapest.": "บอกมาว่าอะไรเสีย ฉันจะถามราคาจากร้านซ่อมใกล้คุณ แล้วแสดงร้านที่ถูกที่สุด",
  "Set your area": "ตั้งพื้นที่ของคุณ", "Set area": "ตั้งพื้นที่", "Searching near": "ค้นหาแถว", "Now searching near": "ตอนนี้ค้นหาแถว", "Tap to change": "แตะเพื่อเปลี่ยน",
  "See your last results": "ดูผลลัพธ์ล่าสุด", "Hide map": "ซ่อนแผนที่", "Tap the map or drag the pin, then tap Use this location.": "แตะแผนที่หรือลากหมุด แล้วแตะ ใช้ตำแหน่งนี้",
@@ -55,7 +55,7 @@ export const thai: Record<string, string> = {
 
 export const cantonese: Record<string, string> = {
  "Search radius": "搜尋範圍", "Straight-line distance from the selected location.": "由所選位置計算嘅直線距離。",
- "Increase search radius": "擴大搜尋範圍", "Change area": "轉地區", "Try again": "再試一次", "Couldn't load shop listings. Try again in a moment.": "載入唔到舖頭資料，請等陣再試。",
+ "Done": "完成", "Saving…": "儲存緊…", "Increase search radius": "擴大搜尋範圍", "Change area": "轉地區", "Try again": "再試一次", "Couldn't load shop listings. Try again in a moment.": "載入唔到舖頭資料，請等陣再試。",
  "Tell me what's broken. I'll ask nearby repair shops for a price and show you the cheapest.": "話我知咩壞咗，我會問附近維修舖報價，再話你知邊間最平。",
  "Set your area": "設定你嘅地區", "Set area": "設定地區", "Searching near": "搜尋附近：", "Now searching near": "而家搜尋附近：", "Tap to change": "撳一下就可以改",
  "See your last results": "睇返上次結果", "Hide map": "收埋地圖", "Tap the map or drag the pin, then tap Use this location.": "撳地圖或者拖個圖釘，再撳「用呢個位置」。",
